@@ -1,4 +1,0 @@
-
-pnpm format
-git add .
-pnpm lint

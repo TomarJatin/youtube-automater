@@ -1,7 +1,47 @@
+# Dependencies
 node_modules
-dist
+.pnpm-store
+
+# Testing
+coverage
+.nyc_output
+cypress/videos
+cypress/screenshots
+
+# Next.js
 .next
+out
+
+# Production
 build
-.github
-.husky
-.devcontainer
+dist
+
+# Misc
+.DS_Store
+*.pem
+.env*
+!.env.example
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDE
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore

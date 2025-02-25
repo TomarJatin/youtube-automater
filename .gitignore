@@ -1,45 +1,72 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Dependencies
+node_modules
+.pnpm-store
 
-# dependencies
-/node_modules
-/.pnp
-.pnp.js
-.yarn/install-state.gz
+# Testing
+coverage
+.nyc_output
+cypress/videos
+cypress/screenshots
 
-# testing
-/coverage
+# Next.js
+.next
+out
 
-# next.js
-/.next/
-/out/
+# Production
+build
+dist
 
-# production
-/build
-
-# misc
+# Misc
 .DS_Store
 *.pem
+.env
+.env.*
+!.env.example
 
-# debug
+# Debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
-# local env files
-.env*.local
-.env
-
-# vercel
+# Vercel
 .vercel
 
-# typescript
+# TypeScript
 *.tsbuildinfo
 next-env.d.ts
 
-# logs
-logs
-logs/*
+# IDE
+.idea
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 
-cypress/screenshots
-cypressResult.json
-test-results.json
+# Local files
+*.local
+
+# Logs
+logs
+*.log
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
+
+# Build output
+.next
+out
+dist
+build
+.cache
+
+# System Files
+.DS_Store
+Thumbs.db
