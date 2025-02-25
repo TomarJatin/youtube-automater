@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
 import { Channel, ConnectedChannel } from '@/types/db';
 import { toast } from 'sonner';
+import { Loading } from '@/components/ui/loading';
 
 type ChannelWithDetails = Channel & {
 	connectedChannel: ConnectedChannel | null;
@@ -19,11 +20,53 @@ interface ChannelListProps {
 
 export default function ChannelList({ initialChannels }: ChannelListProps) {
 	const [channels, setChannels] = useState(initialChannels);
+	const [loading, setLoading] = useState<string | null>(null);
+	const [isRefreshing, setIsRefreshing] = useState(false);
 	const router = useRouter();
 
-	const handleConnectChannel = async (channelId: string) => {
+	const refreshChannels = useCallback(async () => {
 		try {
-			const response = await fetch(`/api/auth/youtube?channelId=${channelId}`);
+			setIsRefreshing(true);
+			const response = await fetch('/api/channels');
+			if (!response.ok) throw new Error('Failed to fetch channels');
+			const updatedChannels = await response.json();
+			setChannels(updatedChannels);
+		} catch (error) {
+			console.error('Error refreshing channels:', error);
+			toast.error('Failed to refresh channels');
+		} finally {
+			setIsRefreshing(false);
+		}
+	}, []);
+
+	// Check for returning from YouTube OAuth
+	useEffect(() => {
+		const urlParams = new URLSearchParams(window.location.search);
+		const error = urlParams.get('error');
+		const success = urlParams.get('success');
+
+		if (error) {
+			toast.error(decodeURIComponent(error));
+		} else if (success) {
+			toast.success('Successfully connected to YouTube');
+			refreshChannels();
+		}
+	}, [refreshChannels]);
+
+	// Refresh channels when component mounts
+	useEffect(() => {
+		refreshChannels();
+	}, [refreshChannels]);
+
+	const handleConnectChannel = async (channelId: string) => {
+		setLoading(channelId);
+		try {
+			const response = await fetch(`/api/youtube?channelId=${channelId}`, {
+				headers: {
+					'Accept': 'application/json',
+				},
+			});
+			
 			if (!response.ok) {
 				const error = await response.json();
 				throw new Error(error.message || 'Failed to initiate YouTube connection');
@@ -32,11 +75,16 @@ export default function ChannelList({ initialChannels }: ChannelListProps) {
 			const { url } = await response.json();
 			if (!url) throw new Error('No authorization URL received');
 
+			// Store the current channel ID for post-redirect state
+			localStorage.setItem('connecting_channel_id', channelId);
+			
 			// Redirect to YouTube OAuth
 			window.location.href = url;
 		} catch (error) {
 			console.error('Error connecting to YouTube:', error);
 			toast.error('Failed to connect to YouTube');
+		} finally {
+			setLoading(null);
 		}
 	};
 
@@ -48,8 +96,19 @@ export default function ChannelList({ initialChannels }: ChannelListProps) {
 		router.push(`/channels/${channelId}/competitors`);
 	};
 
+	if (isRefreshing && channels.length === 0) {
+		return <Loading message="Loading channels..." />;
+	}
+
 	return (
 		<div className='grid gap-4'>
+			{isRefreshing && (
+				<div className="col-span-full">
+					<div className="h-1 w-full overflow-hidden rounded-full bg-secondary">
+						<div className="h-full w-1/3 animate-slide bg-primary"></div>
+					</div>
+				</div>
+			)}
 			{channels.map((channel) => (
 				<Card key={channel.id} className='overflow-hidden'>
 					<CardHeader className='relative'>
@@ -84,8 +143,12 @@ export default function ChannelList({ initialChannels }: ChannelListProps) {
 					</CardContent>
 					<CardFooter className='flex gap-2'>
 						{!channel.connectedChannel ? (
-							<Button onClick={() => handleConnectChannel(channel.id)} variant='secondary'>
-								Connect to YouTube
+							<Button 
+								onClick={() => handleConnectChannel(channel.id)} 
+								variant='secondary'
+								disabled={loading === channel.id}
+							>
+								{loading === channel.id ? 'Connecting...' : 'Connect to YouTube'}
 							</Button>
 						) : (
 							<>
