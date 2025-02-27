@@ -21,6 +21,7 @@ interface SectionImage {
 }
 
 export function ImageGenerationStep({ videoData, onBack, onNext }: ImageGenerationStepProps) {
+  console.log("video data for image gneration: ", videoData);
   const scriptSections = videoData.script.split('\n\n').filter(section => section.trim());
   const [sectionImages, setSectionImages] = useState<SectionImage[]>(
     scriptSections.map(() => ({ loading: false }))
@@ -33,7 +34,7 @@ export function ImageGenerationStep({ videoData, onBack, onNext }: ImageGenerati
         i === sectionIndex ? { ...img, loading: true, error: undefined } : img
       ));
 
-      const response = await fetch('/api/channels/videos', {
+      const response = await fetch(`/api/channels/${videoData.channelId}/videos`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -68,7 +69,9 @@ export function ImageGenerationStep({ videoData, onBack, onNext }: ImageGenerati
   };
 
   useEffect(() => {
-    generateAllImages();
+    if(!videoData.images){
+      generateAllImages();
+    }
   }, []);
 
   const handleNext = () => {
@@ -76,9 +79,10 @@ export function ImageGenerationStep({ videoData, onBack, onNext }: ImageGenerati
       .map(img => img.url)
       .filter((url): url is string => url !== undefined);
 
-    if (allImages.length === scriptSections.length) {
-      onNext({ images: allImages });
-    }
+    // if (allImages.length === scriptSections.length) {
+    //   onNext({ images: allImages });
+    // }
+    onNext({images: allImages});
   };
 
   const isGenerating = sectionImages.some(img => img.loading);
@@ -171,7 +175,7 @@ export function ImageGenerationStep({ videoData, onBack, onNext }: ImageGenerati
           </Button>
           <Button 
             onClick={handleNext}
-            disabled={!isComplete || isGenerating}
+            disabled={ isGenerating}
           >
             Continue to Voiceover
           </Button>

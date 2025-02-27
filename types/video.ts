@@ -79,10 +79,14 @@ export interface VideoStepData {
   images?: string[];
   voiceovers?: string[];
   music?: string;
+  channelId?: string;
+  videoId?: string;
 }
 
 export interface ScriptStepData extends VideoStepData {
   selectedIdea: VideoIdea;
+  channelId: string;
+  videoId: string;
 }
 
 export interface ImageStepData extends ScriptStepData {

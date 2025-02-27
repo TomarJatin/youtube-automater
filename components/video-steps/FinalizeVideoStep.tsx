@@ -67,7 +67,7 @@ export function FinalizeVideoStep({ channelId, videoData, onBack, onComplete }: 
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`/api/channels/${channelId}/videos`, {
+      const response = await fetch(`/api/channels/${channelId}/videos?videoId=${videoData.videoId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

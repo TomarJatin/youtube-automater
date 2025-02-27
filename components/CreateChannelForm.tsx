@@ -78,9 +78,9 @@ export default function CreateChannelForm() {
 					control={form.control}
 					name='generateAI'
 					render={({ field }) => (
-						<FormItem className='flex flex-row items-center justify-between rounded-lg border p-4'>
+						<FormItem className='flex flex-row items-center justify-between rounded-lg border p-4 '>
 							<div className='space-y-0.5'>
-								<FormLabel className='text-base'>Use AI Generation</FormLabel>
+								<FormLabel className='text-base cursor-pointer'>Use AI Generation</FormLabel>
 								<FormDescription>Let AI generate your channel name and description</FormDescription>
 							</div>
 							<FormControl>

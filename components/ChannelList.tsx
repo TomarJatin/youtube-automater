@@ -128,8 +128,8 @@ export default function ChannelList({ initialChannels }: ChannelListProps) {
 								className='rounded-full border-4 border-background'
 							/>
 							<div>
-								<CardTitle>{channel.name}</CardTitle>
-								<CardDescription className='line-clamp-2'>{channel.description}</CardDescription>
+								<CardTitle className=''>{channel.name}</CardTitle>
+								<CardDescription className='line-clamp-2 text-white mt-2'>{channel.description}</CardDescription>
 							</div>
 						</div>
 					</CardHeader>

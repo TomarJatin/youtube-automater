@@ -79,11 +79,67 @@ function AudioPlayer({ url, onRegenerate }: AudioPlayerProps) {
 }
 
 export function VoiceoverGenerationStep({ videoData, onBack, onNext }: VoiceoverGenerationStepProps) {
-  const scriptSections = videoData.script.split('\n\n').filter(section => section.trim());
+  // Process script to remove instructions and get only speech text
+  const processScript = (script: string): string[] => {
+    return script
+      .split('\n\n')
+      .filter(section => section.trim())
+      .map(section => {
+        // Remove common instruction patterns
+        return section
+          .replace(/\[.*?\]/g, '') // Remove [instructions]
+          .replace(/\(.*?\)/g, '') // Remove (instructions)
+          .replace(/^(Narrator|Voice|Speaker):\s*/gi, '') // Remove speaker labels
+          .trim();
+      })
+      .filter(section => section.length > 0); // Remove empty sections
+  };
+
+  const scriptSections = processScript(videoData.script);
   const [sectionVoiceovers, setSectionVoiceovers] = useState<SectionVoiceover[]>(
     scriptSections.map(() => ({ loading: false }))
   );
   const [error, setError] = useState<string | null>(null);
+
+  const generateAllVoiceovers = async () => {
+    setError(null);
+    try {
+      // Set all sections to loading
+      setSectionVoiceovers(prev => prev.map(vo => ({ ...vo, loading: true, error: undefined })));
+
+      // Combine all sections with proper spacing and punctuation
+      const combinedScript = scriptSections.join('. ');
+
+      const response = await fetch(`/api/channels/${videoData.channelId}/videos`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          script: combinedScript,
+          generateVoiceover: true,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to generate voiceover');
+      
+      const data = await response.json();
+      if (!data.voiceoverUrl) throw new Error('No voiceover generated');
+      
+      // Set the same URL for all sections since it's one continuous audio
+      setSectionVoiceovers(prev => prev.map(vo => ({ 
+        loading: false, 
+        url: data.voiceoverUrl 
+      })));
+    } catch (error) {
+      console.error('Error:', error);
+      setSectionVoiceovers(prev => prev.map(vo => ({ 
+        loading: false, 
+        error: 'Failed to generate voiceover' 
+      })));
+      setError('Failed to generate voiceovers');
+    }
+  };
 
   const generateVoiceoverForSection = async (sectionIndex: number, section: string) => {
     try {
@@ -91,7 +147,7 @@ export function VoiceoverGenerationStep({ videoData, onBack, onNext }: Voiceover
         i === sectionIndex ? { ...vo, loading: true, error: undefined } : vo
       ));
 
-      const response = await fetch('/api/channels/videos', {
+      const response = await fetch(`/api/channels/${videoData.channelId}/videos`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -115,13 +171,6 @@ export function VoiceoverGenerationStep({ videoData, onBack, onNext }: Voiceover
       setSectionVoiceovers(prev => prev.map((vo, i) => 
         i === sectionIndex ? { loading: false, error: 'Failed to generate voiceover' } : vo
       ));
-    }
-  };
-
-  const generateAllVoiceovers = async () => {
-    setError(null);
-    for (let i = 0; i < scriptSections.length; i++) {
-      await generateVoiceoverForSection(i, scriptSections[i]);
     }
   };
 

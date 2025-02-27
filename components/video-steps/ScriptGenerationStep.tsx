@@ -10,37 +10,41 @@ import { ScriptStepData } from '@/types/video';
 interface ScriptGenerationStepProps {
   videoData: ScriptStepData;
   onBack: () => void;
-  onNext: (data: { script: string }) => void;
+  onNext: (data: { script: string, videoId: string }) => void;
 }
 
 export function ScriptGenerationStep({ videoData, onBack, onNext }: ScriptGenerationStepProps) {
+  console.log("video data in script generatation...", videoData);
   const [loading, setLoading] = useState(false);
   const [script, setScript] = useState<string>('');
+  const [videoId, setVideoId] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const generateScript = async () => {
     try {
       setLoading(true);
       setError(null);
-
-      const response = await fetch('/api/channels/videos', {
+      const response = await fetch(`/api/channels/${videoData.channelId}/videos?videoId=${videoData.videoId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          script: true,
-          selectedIdea: videoData.selectedIdea,
+          selectedIdea: videoData.selectedIdea
         }),
       });
 
-      if (!response.ok) throw new Error('Failed to generate script');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate script');
+      }
       
       const data = await response.json();
       if (!data.script) throw new Error('No script generated');
       
       setScript(data.script);
-    } catch (error) {
+      setVideoId(data.id);
+    } catch (error) { 
       console.error('Error:', error);
       setError('Failed to generate script. Please try again.');
     } finally {
@@ -49,12 +53,14 @@ export function ScriptGenerationStep({ videoData, onBack, onNext }: ScriptGenera
   };
 
   useEffect(() => {
-    generateScript();
+    if(!videoData.script){
+      generateScript();
+    }
   }, []);
 
   const handleNext = () => {
     if (script) {
-      onNext({ script });
+      onNext({ script, videoId });
     }
   };
 
