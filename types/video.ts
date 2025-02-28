@@ -20,6 +20,7 @@ export interface Video {
   images: string[];
   voiceovers: string[];
   music?: string;
+  videoUrl?: string;
   status: VideoStatus;
   createdAt: string;
   updatedAt: string;

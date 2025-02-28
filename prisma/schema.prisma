@@ -3,7 +3,6 @@
 
 generator client {
   provider = "prisma-client-js"
-  previewFeatures = ["mongoDb"]
 }
 
 datasource db {
@@ -58,6 +57,7 @@ model Video {
   images      String[] // S3 URLs
   voiceovers  String[] // S3 URLs
   music       String?  // Selected music URL or reference
+  videoUrl    String?  // Final generated video URL
   status      String   // "in_progress" | "completed"
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

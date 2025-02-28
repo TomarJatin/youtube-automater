@@ -61,6 +61,7 @@ export function FinalizeVideoStep({ channelId, videoData, onBack, onComplete }: 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
 
   const finalizeVideo = async () => {
     try {
@@ -86,6 +87,8 @@ export function FinalizeVideoStep({ channelId, videoData, onBack, onComplete }: 
 
       if (!response.ok) throw new Error('Failed to save video');
       
+      const data = await response.json();
+      setVideoUrl(data.videoUrl);
       setSuccess(true);
       setTimeout(() => {
         onComplete();
@@ -106,8 +109,21 @@ export function FinalizeVideoStep({ channelId, videoData, onBack, onComplete }: 
           {videoData.videoType === 'shorts' ? 'Short' : 'Video'} Created Successfully!
         </h3>
         <p className="text-muted-foreground text-center">
-          Your {videoData.videoType === 'shorts' ? 'YouTube Short' : 'video'} has been saved and is ready for production.
+          Your {videoData.videoType === 'shorts' ? 'YouTube Short' : 'video'} has been generated successfully!
         </p>
+        {videoUrl && (
+          <div className="mt-4">
+            <video 
+              className="w-full max-w-md mx-auto rounded-lg shadow-lg" 
+              controls
+              autoPlay
+              muted
+            >
+              <source src={videoUrl} type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
+          </div>
+        )}
       </div>
     );
   }

@@ -169,10 +169,6 @@ export function VoiceoverGenerationStep({ videoData, onBack, onNext }: Voiceover
     }
   };
 
-  useEffect(() => {
-    generateAllVoiceovers();
-  }, []);
-
   const handleNext = () => {
     const allVoiceovers = sectionVoiceovers
       .map(vo => vo.url)
@@ -253,7 +249,19 @@ export function VoiceoverGenerationStep({ videoData, onBack, onNext }: Voiceover
                       : generateVoiceoverForSection(index, section)
                   }
                 />
-              ) : null}
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <Button
+                    onClick={() => 
+                      videoData.videoType === 'shorts'
+                        ? generateAllVoiceovers()
+                        : generateVoiceoverForSection(index, section)
+                    }
+                  >
+                    Generate Voiceover
+                  </Button>
+                </div>
+              )}
             </div>
           </Card>
         ))}

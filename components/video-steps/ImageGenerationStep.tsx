@@ -69,11 +69,6 @@ export function ImageGenerationStep({ videoData, onBack, onNext }: ImageGenerati
     }
   };
 
-  useEffect(() => {
-    if(!videoData.images){
-      generateAllImages();
-    }
-  }, []);
 
   const handleNext = () => {
     const allImages = sectionImages
@@ -152,7 +147,15 @@ export function ImageGenerationStep({ videoData, onBack, onNext }: ImageGenerati
                     <RefreshCw className="h-4 w-4" />
                   </Button>
                 </>
-              ) : null}
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Button
+                    onClick={() => generateImageForSection(index, section)}
+                  >
+                    Generate Image
+                  </Button>
+                </div>
+              )}
             </div>
           </Card>
         ))}

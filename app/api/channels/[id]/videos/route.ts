@@ -2,6 +2,13 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import OpenAI, { AzureOpenAI } from 'openai';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+
+const execAsync = promisify(exec);
 import {
   VideoApiRequest,
   CompetitorVideo,
@@ -296,22 +303,109 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
     // Finalize video
     if (isFinalizeVideoRequest(body)) {
-      const updatedVideo = await prisma.video.update({
-        where: { id: videoId! },
-        data: {
-          script: body.script,
-          images: body.images,
-          voiceovers: body.voiceovers,
-          music: body.music,
-          status: body.status,
-        },
-      });
-      // Add memory-only fields to response
-      return NextResponse.json({
-        ...updatedVideo,
-        cleanScript: body.cleanScript,
-        videoType: body.videoType
-      });
+      try {
+        // Create temporary directory
+        const tempDir = path.join(os.tmpdir(), `video-${Date.now()}`);
+        await fs.promises.mkdir(tempDir, { recursive: true });
+
+        // Download all assets
+        const imageFiles = await Promise.all(
+          body.images.map(async (url, i) => {
+            const response = await fetch(url);
+            const buffer = await response.arrayBuffer();
+            const filePath = path.join(tempDir, `image-${i}.png`);
+            await fs.promises.writeFile(filePath, Buffer.from(buffer));
+            return filePath;
+          })
+        );
+
+        const voiceoverFiles = await Promise.all(
+          body.voiceovers.map(async (url, i) => {
+            const response = await fetch(url);
+            const buffer = await response.arrayBuffer();
+            const filePath = path.join(tempDir, `voiceover-${i}.mp3`);
+            await fs.promises.writeFile(filePath, Buffer.from(buffer));
+            return filePath;
+          })
+        );
+
+        // Generate video segments
+        const segmentFiles = await Promise.all(
+          imageFiles.map(async (imagePath, i) => {
+            const voiceoverPath = voiceoverFiles[i];
+            const outputPath = path.join(tempDir, `segment-${i}.mp4`);
+            
+            // Get audio duration
+            const { stdout: durationStr } = await execAsync(
+              `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${voiceoverPath}"`
+            );
+            const duration = parseFloat(durationStr);
+
+            // Create segment with image and voiceover
+            await execAsync(
+              `ffmpeg -loop 1 -i "${imagePath}" -i "${voiceoverPath}" -c:v libx264 -c:a aac -strict experimental ` +
+              `-t ${duration} -vf "scale=1080:1920,fps=30" -pix_fmt yuv420p "${outputPath}"`
+            );
+
+            return outputPath;
+          })
+        );
+
+        // Concatenate segments
+        const listFile = path.join(tempDir, 'segments.txt');
+        await fs.promises.writeFile(
+          listFile,
+          segmentFiles.map(f => `file '${f}'`).join('\n')
+        );
+
+        const finalVideoPath = path.join(tempDir, 'final.mp4');
+        await execAsync(
+          `ffmpeg -f concat -safe 0 -i "${listFile}" -c copy "${finalVideoPath}"`
+        );
+
+        // Upload to S3
+        const videoBuffer = await fs.promises.readFile(finalVideoPath);
+        const key = `videos/${Date.now()}-${Math.random().toString(36).substring(7)}.mp4`;
+
+        await s3Client.send(
+          new PutObjectCommand({
+            Bucket: process.env.AWS_BUCKET_NAME!,
+            Key: key,
+            Body: videoBuffer,
+            ContentType: 'video/mp4',
+            ACL: 'public-read',
+          })
+        );
+
+        const videoUrl = `https://${process.env.AWS_BUCKET_NAME}.s3.amazonaws.com/${key}`;
+
+        console.log('generated video ...', videoUrl);
+
+        // Update video in database
+        const updatedVideo = await prisma.video.update({
+          where: { id: videoId! },
+          data: {
+            script: body.script,
+            images: body.images,
+            voiceovers: body.voiceovers,
+            music: body.music,
+            status: body.status,
+            videoUrl: videoUrl,
+          },
+        });
+
+        // Cleanup
+        await fs.promises.rm(tempDir, { recursive: true, force: true });
+
+        return NextResponse.json({
+          ...updatedVideo,
+          cleanScript: body.cleanScript,
+          videoType: body.videoType
+        });
+      } catch (error) {
+        console.error('Error generating video:', error);
+        throw error;
+      }
     }
 
     // Update existing video

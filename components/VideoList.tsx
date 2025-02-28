@@ -188,6 +188,22 @@ export default function VideoList({ channelId }: VideoListProps) {
                       </div>
                     )}
 
+                    {video.videoUrl && (
+                      <div className="space-y-2">
+                        <h3 className="text-sm font-medium">Generated Video</h3>
+                        <div className="relative aspect-video h-[400px] w-auto  rounded-lg ">
+                          <video 
+                            controls 
+                            className="w-full object-contain h-[400px]"
+                            poster={video.images[0]}
+                          >
+                            <source src={video.videoUrl} type="video/mp4" />
+                            Your browser does not support the video element.
+                          </video>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="text-xs text-muted-foreground">
                       Last updated: {new Date(video.updatedAt).toLocaleString()}
                     </div>
