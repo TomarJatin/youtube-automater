@@ -19,7 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 					<div className='relative min-h-screen'>
 						<header className='border-b'>
 							<div className='container mx-auto flex items-center justify-between p-4'>
-								<h1 className='text-xl font-bold'>YouTube Automater</h1>
+								<a href='/' className='text-xl font-bold cursor-pointer'>YouTube Automater</a>
 								<ThemeToggle />
 							</div>
 						</header>

@@ -97,7 +97,7 @@ export function VoiceoverGenerationStep({ videoData, onBack, onNext }: Voiceover
       // For shorts, we'll generate one voiceover for the entire script
       // For long videos, we'll generate separate voiceovers for each section
       if (videoData.videoType === 'shorts') {
-        const response = await fetch(`/api/channels/${videoData.channelId}/videos`, {
+        const response = await fetch(`/api/channels/${videoData.channelId}/videos?videoId=${videoData.videoId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -141,7 +141,7 @@ export function VoiceoverGenerationStep({ videoData, onBack, onNext }: Voiceover
         i === sectionIndex ? { ...vo, loading: true, error: undefined } : vo
       ));
 
-      const response = await fetch(`/api/channels/${videoData.channelId}/videos`, {
+          const response = await fetch(`/api/channels/${videoData.channelId}/videos?videoId=${videoData.videoId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

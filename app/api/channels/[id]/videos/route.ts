@@ -224,7 +224,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     }
     
 
-    // Create new video with selected idea
+    // Create new video with selected idea or update existing video with script
     if (isCreateVideoRequest(body)) {
       // Validate channelId
       if (!params.id || typeof params.id !== 'string' || params.id.length !== 24) {
@@ -246,31 +246,39 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         );
       }
 
-      const video = await prisma.video.create({
-        data: {
-          channelId: params.id,
-          title: body.selectedIdea.title,
-          idea: body.selectedIdea.idea,
-          status: 'in_progress',
-          images: [],
-          voiceovers: [],
-        },
-      });
+      // Check if videoId is provided in query params
+      const { searchParams } = new URL(req.url);
+      const videoId = searchParams.get('videoId');
 
-      // Generate script for the newly created video
-      const script = await generateScript(
-        body.selectedIdea.title, 
-        body.selectedIdea.idea,
-        body.videoType || 'long'
-      );
-      
-      // Update video with generated script
-      const updatedVideo = await prisma.video.update({
-        where: { id: video.id },
-        data: { script },
-      });
+      if (videoId) {
+        // If videoId exists, update the existing video with the script
+        const script = await generateScript(
+          body.selectedIdea.title, 
+          body.selectedIdea.idea,
+          body.videoType || 'long'
+        );
 
-      return NextResponse.json(updatedVideo);
+        const updatedVideo = await prisma.video.update({
+          where: { id: videoId },
+          data: { script },
+        });
+
+        return NextResponse.json(updatedVideo);
+      } else {
+        // If no videoId, create a new video
+        const video = await prisma.video.create({
+          data: {
+            channelId: params.id,
+            title: body.selectedIdea.title,
+            idea: body.selectedIdea.idea,
+            status: 'in_progress',
+            images: [],
+            voiceovers: [],
+          },
+        });
+
+        return NextResponse.json(video);
+      }
     }
 
     // Generate single image

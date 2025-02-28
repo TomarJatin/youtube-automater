@@ -10,7 +10,7 @@ import { VideoIdea } from '@/types/video';
 
 interface VideoIdeasStepProps {
   channelId: string;
-  onNext: (data: { selectedIdea: VideoIdea; videoType: 'shorts' | 'long' }) => void;
+  onNext: (data: { selectedIdea: VideoIdea; videoType: 'shorts' | 'long'; videoId: string }) => void;
 }
 
 export function VideoIdeasStep({ channelId, onNext }: VideoIdeasStepProps) {
@@ -57,12 +57,36 @@ export function VideoIdeasStep({ channelId, onNext }: VideoIdeasStepProps) {
     fetchVideoIdeas();
   }, [channelId]);
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (selectedIdeaIndex !== null) {
-      onNext({ 
-        selectedIdea: ideas[selectedIdeaIndex],
-        videoType
-      });
+      try {
+        setLoading(true);
+        // Create the initial video
+        const response = await fetch(`/api/channels/${channelId}/videos`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            selectedIdea: ideas[selectedIdeaIndex],
+            videoType
+          }),
+        });
+
+        if (!response.ok) throw new Error('Failed to create video');
+        const video = await response.json();
+
+        onNext({ 
+          selectedIdea: ideas[selectedIdeaIndex],
+          videoType,
+          videoId: video.id
+        });
+      } catch (error) {
+        console.error('Error:', error);
+        setError('Failed to create video. Please try again.');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 

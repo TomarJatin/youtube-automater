@@ -35,7 +35,7 @@ export function ImageGenerationStep({ videoData, onBack, onNext }: ImageGenerati
         i === sectionIndex ? { ...img, loading: true, error: undefined } : img
       ));
 
-      const response = await fetch(`/api/channels/${videoData.channelId}/videos`, {
+      const response = await fetch(`/api/channels/${videoData.channelId}/videos?videoId=${videoData.videoId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

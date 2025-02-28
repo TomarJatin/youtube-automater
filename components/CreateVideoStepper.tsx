@@ -64,17 +64,21 @@ export function CreateVideoStepper({ channelId, onComplete }: CreateVideoStepper
 				return (
 					'selectedIdea' in data && 
 					'videoType' in data && 
+					'videoId' in data &&
 					data.selectedIdea !== undefined && 
-					data.videoType !== undefined
+					data.videoType !== undefined &&
+					data.videoId !== undefined
 				);
 			case 3:
 				return (
 					'selectedIdea' in data && 
 					'videoType' in data && 
+					'videoId' in data &&
 					'script' in data && 
 					'cleanScript' in data && 
 					data.selectedIdea !== undefined && 
 					data.videoType !== undefined && 
+					data.videoId !== undefined &&
 					data.script !== undefined && 
 					data.cleanScript !== undefined
 				);
@@ -82,11 +86,13 @@ export function CreateVideoStepper({ channelId, onComplete }: CreateVideoStepper
 				return (
 					'selectedIdea' in data &&
 					'videoType' in data &&
+					'videoId' in data &&
 					'script' in data &&
 					'cleanScript' in data &&
 					'images' in data &&
 					data.selectedIdea !== undefined &&
 					data.videoType !== undefined &&
+					data.videoId !== undefined &&
 					data.script !== undefined &&
 					data.cleanScript !== undefined &&
 					data.images !== undefined
@@ -95,12 +101,14 @@ export function CreateVideoStepper({ channelId, onComplete }: CreateVideoStepper
 				return (
 					'selectedIdea' in data &&
 					'videoType' in data &&
+					'videoId' in data &&
 					'script' in data &&
 					'cleanScript' in data &&
 					'images' in data &&
 					'voiceovers' in data &&
 					data.selectedIdea !== undefined &&
 					data.videoType !== undefined &&
+					data.videoId !== undefined &&
 					data.script !== undefined &&
 					data.cleanScript !== undefined &&
 					data.images !== undefined &&
@@ -110,6 +118,7 @@ export function CreateVideoStepper({ channelId, onComplete }: CreateVideoStepper
 				return (
 					'selectedIdea' in data &&
 					'videoType' in data &&
+					'videoId' in data &&
 					'script' in data &&
 					'cleanScript' in data &&
 					'images' in data &&
@@ -117,6 +126,7 @@ export function CreateVideoStepper({ channelId, onComplete }: CreateVideoStepper
 					'music' in data &&
 					data.selectedIdea !== undefined &&
 					data.videoType !== undefined &&
+					data.videoId !== undefined &&
 					data.script !== undefined &&
 					data.cleanScript !== undefined &&
 					data.images !== undefined &&
@@ -134,11 +144,12 @@ export function CreateVideoStepper({ channelId, onComplete }: CreateVideoStepper
 				return (
 					<VideoIdeasStep
 						channelId={channelId}
-						onNext={(data: { selectedIdea: VideoIdea; videoType: 'shorts' | 'long' }) => {
+						onNext={(data: { selectedIdea: VideoIdea; videoType: 'shorts' | 'long'; videoId: string }) => {
 							console.log('data in video ideas step...', data, channelId);
 							updateVideoData({
 								...data,
 								channelId,
+								videoId: data.videoId, // Store the videoId from initial creation
 							});
 							handleNext();
 						}}

@@ -58,6 +58,12 @@ export function ScriptGenerationStep({ videoData, onBack, onNext }: ScriptGenera
     try {
       setLoading(true);
       setError(null);
+      
+      // Ensure we have a videoId
+      if (!videoData.videoId) {
+        throw new Error('No video ID provided');
+      }
+
       const response = await fetch(`/api/channels/${videoData.channelId}/videos?videoId=${videoData.videoId}`, {
         method: 'POST',
         headers: {
@@ -78,7 +84,8 @@ export function ScriptGenerationStep({ videoData, onBack, onNext }: ScriptGenera
       if (!data.script) throw new Error('No script generated');
       
       setScript(data.script);
-      setVideoId(data.id);
+      // Keep using the existing videoId
+      setVideoId(videoData.videoId);
     } catch (error) { 
       console.error('Error:', error);
       setError('Failed to generate script. Please try again.');
