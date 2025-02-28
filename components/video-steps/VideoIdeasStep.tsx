@@ -9,170 +9,165 @@ import { Loader2 } from 'lucide-react';
 import { VideoIdea } from '@/types/video';
 
 interface VideoIdeasStepProps {
-  channelId: string;
-  onNext: (data: { selectedIdea: VideoIdea; videoType: 'shorts' | 'long'; videoId: string }) => void;
+	channelId: string;
+	onNext: (data: { selectedIdea: VideoIdea; videoType: 'shorts' | 'long'; videoId: string }) => void;
 }
 
 export function VideoIdeasStep({ channelId, onNext }: VideoIdeasStepProps) {
-  const [loading, setLoading] = useState(false);
-  const [ideas, setIdeas] = useState<VideoIdea[]>([]);
-  const [selectedIdeaIndex, setSelectedIdeaIndex] = useState<number | null>(null);
-  const [videoType, setVideoType] = useState<'shorts' | 'long'>('long');
-  const [error, setError] = useState<string | null>(null);
+	const [loading, setLoading] = useState(false);
+	const [ideas, setIdeas] = useState<VideoIdea[]>([]);
+	const [selectedIdeaIndex, setSelectedIdeaIndex] = useState<number | null>(null);
+	const [videoType, setVideoType] = useState<'shorts' | 'long'>('long');
+	const [error, setError] = useState<string | null>(null);
 
-  const fetchVideoIdeas = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+	const fetchVideoIdeas = async () => {
+		try {
+			setLoading(true);
+			setError(null);
 
-      // First, fetch competitors
-      const competitorsResponse = await fetch(`/api/channels/${channelId}/competitors`);
-      if (!competitorsResponse.ok) throw new Error('Failed to fetch competitors');
-      const competitors = await competitorsResponse.json();
+			// First, fetch competitors
+			const competitorsResponse = await fetch(`/api/channels/${channelId}/competitors`);
+			if (!competitorsResponse.ok) throw new Error('Failed to fetch competitors');
+			const competitors = await competitorsResponse.json();
 
-      // Generate video ideas based on competitor videos
-      const ideasResponse = await fetch(`/api/channels/${channelId}/videos`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          competitorVideos: competitors,
-          generateIdeas: true,
-        }),
-      });
+			// Generate video ideas based on competitor videos
+			const ideasResponse = await fetch(`/api/channels/${channelId}/videos`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					competitorVideos: competitors,
+					generateIdeas: true,
+				}),
+			});
 
-      if (!ideasResponse.ok) throw new Error('Failed to generate video ideas');
-      const generatedIdeas = await ideasResponse.json();
-      setIdeas(generatedIdeas);
-    } catch (error) {
-      console.error('Error:', error);
-      setError('Failed to generate video ideas. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+			if (!ideasResponse.ok) throw new Error('Failed to generate video ideas');
+			const generatedIdeas = await ideasResponse.json();
+			setIdeas(generatedIdeas);
+		} catch (error) {
+			console.error('Error:', error);
+			setError('Failed to generate video ideas. Please try again.');
+		} finally {
+			setLoading(false);
+		}
+	};
 
-  useEffect(() => {
-    fetchVideoIdeas();
-  }, [channelId]);
+	useEffect(() => {
+		fetchVideoIdeas();
+	}, [channelId]);
 
-  const handleNext = async () => {
-    if (selectedIdeaIndex !== null) {
-      try {
-        setLoading(true);
-        // Create the initial video
-        const response = await fetch(`/api/channels/${channelId}/videos`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            selectedIdea: ideas[selectedIdeaIndex],
-            videoType
-          }),
-        });
+	const handleNext = async () => {
+		if (selectedIdeaIndex !== null) {
+			try {
+				setLoading(true);
+				// Create the initial video
+				const response = await fetch(`/api/channels/${channelId}/videos`, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify({
+						selectedIdea: ideas[selectedIdeaIndex],
+						videoType,
+					}),
+				});
 
-        if (!response.ok) throw new Error('Failed to create video');
-        const video = await response.json();
+				if (!response.ok) throw new Error('Failed to create video');
+				const video = await response.json();
 
-        onNext({ 
-          selectedIdea: ideas[selectedIdeaIndex],
-          videoType,
-          videoId: video.id
-        });
-      } catch (error) {
-        console.error('Error:', error);
-        setError('Failed to create video. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    }
-  };
+				onNext({
+					selectedIdea: ideas[selectedIdeaIndex],
+					videoType,
+					videoId: video.id,
+				});
+			} catch (error) {
+				console.error('Error:', error);
+				setError('Failed to create video. Please try again.');
+			} finally {
+				setLoading(false);
+			}
+		}
+	};
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center p-8 space-y-4">
-        <Loader2 className="h-8 w-8 animate-spin" />
-        <p>Analyzing competitor videos and generating ideas...</p>
-        <p className="text-sm text-muted-foreground">
-          This may take a few moments as we analyze your competitors and generate unique video ideas.
-        </p>
-      </div>
-    );
-  }
+	if (loading) {
+		return (
+			<div className='flex flex-col items-center justify-center space-y-4 p-8'>
+				<Loader2 className='h-8 w-8 animate-spin' />
+				<p>Analyzing competitor videos and generating ideas...</p>
+				<p className='text-sm text-muted-foreground'>
+					This may take a few moments as we analyze your competitors and generate unique video ideas.
+				</p>
+			</div>
+		);
+	}
 
-  if (error) {
-    return (
-      <div className="text-center text-destructive p-8">
-        <p>{error}</p>
-        <Button onClick={fetchVideoIdeas} className="mt-4">
-          Try Again
-        </Button>
-      </div>
-    );
-  }
+	if (error) {
+		return (
+			<div className='p-8 text-center text-destructive'>
+				<p>{error}</p>
+				<Button onClick={fetchVideoIdeas} className='mt-4'>
+					Try Again
+				</Button>
+			</div>
+		);
+	}
 
-  return (
-    <div className="space-y-6">
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Select Video Type</h3>
-        <RadioGroup
-          value={videoType}
-          onValueChange={(value) => setVideoType(value as 'shorts' | 'long')}
-          className="flex items-center space-x-4"
-        >
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="long" id="long" />
-            <Label htmlFor="long">Long Form Video</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="shorts" id="shorts" />
-            <Label htmlFor="shorts">YouTube Shorts (≤ 30s)</Label>
-          </div>
-        </RadioGroup>
-      </div>
+	return (
+		<div className='space-y-6'>
+			<div className='space-y-4'>
+				<h3 className='text-lg font-semibold'>Select Video Type</h3>
+				<RadioGroup
+					value={videoType}
+					onValueChange={(value) => setVideoType(value as 'shorts' | 'long')}
+					className='flex items-center space-x-4'
+				>
+					<div className='flex items-center space-x-2'>
+						<RadioGroupItem value='long' id='long' />
+						<Label htmlFor='long'>Long Form Video</Label>
+					</div>
+					<div className='flex items-center space-x-2'>
+						<RadioGroupItem value='shorts' id='shorts' />
+						<Label htmlFor='shorts'>YouTube Shorts (≤ 30s)</Label>
+					</div>
+				</RadioGroup>
+			</div>
 
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Select a Video Idea</h3>
-        <p className="text-muted-foreground">
-          Choose from the following AI-generated video ideas based on competitor analysis:
-        </p>
-      </div>
+			<div className='space-y-4'>
+				<h3 className='text-lg font-semibold'>Select a Video Idea</h3>
+				<p className='text-muted-foreground'>
+					Choose from the following AI-generated video ideas based on competitor analysis:
+				</p>
+			</div>
 
-      <RadioGroup
-        value={selectedIdeaIndex?.toString()}
-        onValueChange={(value) => setSelectedIdeaIndex(parseInt(value))}
-        className="space-y-4"
-      >
-        {ideas.map((idea, index) => (
-          <Card
-            key={index}
-            className={`p-4 cursor-pointer transition-colors ${
-              selectedIdeaIndex === index ? 'border-primary' : ''
-            }`}
-          >
-            <div className="flex items-start space-x-4">
-              <RadioGroupItem value={index.toString()} id={`idea-${index}`} />
-              <div className="flex-grow">
-                <Label htmlFor={`idea-${index}`} className="font-medium">
-                  {idea.title}
-                </Label>
-                <p className="text-sm text-muted-foreground mt-1">{idea.idea}</p>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </RadioGroup>
+			<RadioGroup
+				value={selectedIdeaIndex?.toString()}
+				onValueChange={(value) => setSelectedIdeaIndex(parseInt(value))}
+				className='space-y-4'
+			>
+				{ideas.map((idea, index) => (
+					<Card
+						key={index}
+						className={`cursor-pointer p-4 transition-colors ${selectedIdeaIndex === index ? 'border-primary' : ''}`}
+					>
+						<div className='flex items-start space-x-4'>
+							<RadioGroupItem value={index.toString()} id={`idea-${index}`} />
+							<div className='flex-grow'>
+								<Label htmlFor={`idea-${index}`} className='font-medium'>
+									{idea.title}
+								</Label>
+								<p className='mt-1 text-sm text-muted-foreground'>{idea.idea}</p>
+							</div>
+						</div>
+					</Card>
+				))}
+			</RadioGroup>
 
-      <div className="flex justify-end pt-4">
-        <Button
-          onClick={handleNext}
-          disabled={selectedIdeaIndex === null}
-        >
-          Continue to Script
-        </Button>
-      </div>
-    </div>
-  );
+			<div className='flex justify-end pt-4'>
+				<Button onClick={handleNext} disabled={selectedIdeaIndex === null}>
+					Continue to Script
+				</Button>
+			</div>
+		</div>
+	);
 }

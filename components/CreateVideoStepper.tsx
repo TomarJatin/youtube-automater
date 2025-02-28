@@ -62,24 +62,24 @@ export function CreateVideoStepper({ channelId, onComplete }: CreateVideoStepper
 		switch (step) {
 			case 2:
 				return (
-					'selectedIdea' in data && 
-					'videoType' in data && 
+					'selectedIdea' in data &&
+					'videoType' in data &&
 					'videoId' in data &&
-					data.selectedIdea !== undefined && 
+					data.selectedIdea !== undefined &&
 					data.videoType !== undefined &&
 					data.videoId !== undefined
 				);
 			case 3:
 				return (
-					'selectedIdea' in data && 
-					'videoType' in data && 
+					'selectedIdea' in data &&
+					'videoType' in data &&
 					'videoId' in data &&
-					'script' in data && 
-					'cleanScript' in data && 
-					data.selectedIdea !== undefined && 
-					data.videoType !== undefined && 
+					'script' in data &&
+					'cleanScript' in data &&
+					data.selectedIdea !== undefined &&
+					data.videoType !== undefined &&
 					data.videoId !== undefined &&
-					data.script !== undefined && 
+					data.script !== undefined &&
 					data.cleanScript !== undefined
 				);
 			case 4:
@@ -167,15 +167,15 @@ export function CreateVideoStepper({ channelId, onComplete }: CreateVideoStepper
 							channelId,
 						}}
 						onBack={handleBack}
-          onNext={(data: { script: string; cleanScript: string; videoId: string }) => {
-            updateVideoData({
-              ...videoData,
-              script: data.script,
-              cleanScript: data.cleanScript,
-              videoId: data.videoId,
-            });
-            handleNext();
-          }}
+						onNext={(data: { script: string; cleanScript: string; videoId: string }) => {
+							updateVideoData({
+								...videoData,
+								script: data.script,
+								cleanScript: data.cleanScript,
+								videoId: data.videoId,
+							});
+							handleNext();
+						}}
 					/>
 				);
 			case 3:

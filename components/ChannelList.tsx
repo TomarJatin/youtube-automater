@@ -63,10 +63,10 @@ export default function ChannelList({ initialChannels }: ChannelListProps) {
 		try {
 			const response = await fetch(`/api/youtube?channelId=${channelId}`, {
 				headers: {
-					'Accept': 'application/json',
+					Accept: 'application/json',
 				},
 			});
-			
+
 			if (!response.ok) {
 				const error = await response.json();
 				throw new Error(error.message || 'Failed to initiate YouTube connection');
@@ -77,7 +77,7 @@ export default function ChannelList({ initialChannels }: ChannelListProps) {
 
 			// Store the current channel ID for post-redirect state
 			localStorage.setItem('connecting_channel_id', channelId);
-			
+
 			// Redirect to YouTube OAuth
 			window.location.href = url;
 		} catch (error) {
@@ -97,15 +97,15 @@ export default function ChannelList({ initialChannels }: ChannelListProps) {
 	};
 
 	if (isRefreshing && channels.length === 0) {
-		return <Loading message="Loading channels..." />;
+		return <Loading message='Loading channels...' />;
 	}
 
 	return (
 		<div className='grid gap-4'>
 			{isRefreshing && (
-				<div className="col-span-full">
-					<div className="h-1 w-full overflow-hidden rounded-full bg-secondary">
-						<div className="h-full w-1/3 animate-slide bg-primary"></div>
+				<div className='col-span-full'>
+					<div className='h-1 w-full overflow-hidden rounded-full bg-secondary'>
+						<div className='h-full w-1/3 animate-slide bg-primary'></div>
 					</div>
 				</div>
 			)}
@@ -129,7 +129,7 @@ export default function ChannelList({ initialChannels }: ChannelListProps) {
 							/>
 							<div>
 								<CardTitle className=''>{channel.name}</CardTitle>
-								<CardDescription className='line-clamp-2 text-white mt-2'>{channel.description}</CardDescription>
+								<CardDescription className='mt-2 line-clamp-2 text-white'>{channel.description}</CardDescription>
 							</div>
 						</div>
 					</CardHeader>
@@ -143,8 +143,8 @@ export default function ChannelList({ initialChannels }: ChannelListProps) {
 					</CardContent>
 					<CardFooter className='flex gap-2'>
 						{!channel.connectedChannel ? (
-							<Button 
-								onClick={() => handleConnectChannel(channel.id)} 
+							<Button
+								onClick={() => handleConnectChannel(channel.id)}
 								variant='secondary'
 								disabled={loading === channel.id}
 							>
