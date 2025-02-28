@@ -21,8 +21,9 @@ interface SectionImage {
 }
 
 export function ImageGenerationStep({ videoData, onBack, onNext }: ImageGenerationStepProps) {
-  console.log("video data for image gneration: ", videoData);
-  const scriptSections = videoData.script.split('\n\n').filter(section => section.trim());
+  // Use cleanScript if available, otherwise fall back to regular script
+  const scriptToUse = videoData.cleanScript || videoData.script;
+  const scriptSections = scriptToUse.split('\n\n').filter(section => section.trim());
   const [sectionImages, setSectionImages] = useState<SectionImage[]>(
     scriptSections.map(() => ({ loading: false }))
   );
@@ -78,10 +79,6 @@ export function ImageGenerationStep({ videoData, onBack, onNext }: ImageGenerati
     const allImages = sectionImages
       .map(img => img.url)
       .filter((url): url is string => url !== undefined);
-
-    // if (allImages.length === scriptSections.length) {
-    //   onNext({ images: allImages });
-    // }
     onNext({images: allImages});
   };
 
@@ -94,7 +91,7 @@ export function ImageGenerationStep({ videoData, onBack, onNext }: ImageGenerati
     return (
       <div className="flex flex-col items-center justify-center p-8 space-y-4">
         <Loader2 className="h-8 w-8 animate-spin" />
-        <p>Generating images for your video...</p>
+        <p>Generating images for your {videoData.videoType === 'shorts' ? 'short' : 'video'}...</p>
         <p className="text-sm text-muted-foreground">
           Generated {progress} of {scriptSections.length} images
         </p>
@@ -107,7 +104,7 @@ export function ImageGenerationStep({ videoData, onBack, onNext }: ImageGenerati
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Generated Images</h3>
         <p className="text-muted-foreground">
-          Review the AI-generated images for your video. Each image corresponds to a section of your script.
+          Review the AI-generated images for your {videoData.videoType === 'shorts' ? 'short' : 'video'}. Each image corresponds to a section of your script.
         </p>
       </div>
 
@@ -175,7 +172,7 @@ export function ImageGenerationStep({ videoData, onBack, onNext }: ImageGenerati
           </Button>
           <Button 
             onClick={handleNext}
-            disabled={ isGenerating}
+            disabled={isGenerating}
           >
             Continue to Voiceover
           </Button>

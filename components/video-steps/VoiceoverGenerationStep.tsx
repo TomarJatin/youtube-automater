@@ -79,23 +79,10 @@ function AudioPlayer({ url, onRegenerate }: AudioPlayerProps) {
 }
 
 export function VoiceoverGenerationStep({ videoData, onBack, onNext }: VoiceoverGenerationStepProps) {
-  // Process script to remove instructions and get only speech text
-  const processScript = (script: string): string[] => {
-    return script
-      .split('\n\n')
-      .filter(section => section.trim())
-      .map(section => {
-        // Remove common instruction patterns
-        return section
-          .replace(/\[.*?\]/g, '') // Remove [instructions]
-          .replace(/\(.*?\)/g, '') // Remove (instructions)
-          .replace(/^(Narrator|Voice|Speaker):\s*/gi, '') // Remove speaker labels
-          .trim();
-      })
-      .filter(section => section.length > 0); // Remove empty sections
-  };
-
-  const scriptSections = processScript(videoData.script);
+  // Use cleanScript if available, otherwise fall back to regular script
+  const scriptToUse = videoData.cleanScript || videoData.script;
+  const scriptSections = scriptToUse.split('\n\n').filter(section => section.trim());
+  
   const [sectionVoiceovers, setSectionVoiceovers] = useState<SectionVoiceover[]>(
     scriptSections.map(() => ({ loading: false }))
   );
@@ -107,30 +94,37 @@ export function VoiceoverGenerationStep({ videoData, onBack, onNext }: Voiceover
       // Set all sections to loading
       setSectionVoiceovers(prev => prev.map(vo => ({ ...vo, loading: true, error: undefined })));
 
-      // Combine all sections with proper spacing and punctuation
-      const combinedScript = scriptSections.join('. ');
+      // For shorts, we'll generate one voiceover for the entire script
+      // For long videos, we'll generate separate voiceovers for each section
+      if (videoData.videoType === 'shorts') {
+        const response = await fetch(`/api/channels/${videoData.channelId}/videos`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            script: scriptToUse,
+            generateVoiceover: true,
+            videoType: 'shorts'
+          }),
+        });
 
-      const response = await fetch(`/api/channels/${videoData.channelId}/videos`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          script: combinedScript,
-          generateVoiceover: true,
-        }),
-      });
-
-      if (!response.ok) throw new Error('Failed to generate voiceover');
-      
-      const data = await response.json();
-      if (!data.voiceoverUrl) throw new Error('No voiceover generated');
-      
-      // Set the same URL for all sections since it's one continuous audio
-      setSectionVoiceovers(prev => prev.map(vo => ({ 
-        loading: false, 
-        url: data.voiceoverUrl 
-      })));
+        if (!response.ok) throw new Error('Failed to generate voiceover');
+        
+        const data = await response.json();
+        if (!data.voiceoverUrl) throw new Error('No voiceover generated');
+        
+        // Set the same URL for all sections since it's one continuous audio
+        setSectionVoiceovers(prev => prev.map(vo => ({ 
+          loading: false, 
+          url: data.voiceoverUrl 
+        })));
+      } else {
+        // For long videos, generate separate voiceovers for each section
+        for (let i = 0; i < scriptSections.length; i++) {
+          await generateVoiceoverForSection(i, scriptSections[i]);
+        }
+      }
     } catch (error) {
       console.error('Error:', error);
       setSectionVoiceovers(prev => prev.map(vo => ({ 
@@ -155,6 +149,7 @@ export function VoiceoverGenerationStep({ videoData, onBack, onNext }: Voiceover
         body: JSON.stringify({
           script: section,
           generateVoiceover: true,
+          videoType: videoData.videoType
         }),
       });
 
@@ -183,9 +178,10 @@ export function VoiceoverGenerationStep({ videoData, onBack, onNext }: Voiceover
       .map(vo => vo.url)
       .filter((url): url is string => url !== undefined);
 
-    if (allVoiceovers.length === scriptSections.length) {
-      onNext({ voiceovers: allVoiceovers });
-    }
+    // if (allVoiceovers.length === scriptSections.length) {
+    //   onNext({ voiceovers: allVoiceovers });
+    // }
+    onNext({ voiceovers: allVoiceovers });
   };
 
   const isGenerating = sectionVoiceovers.some(vo => vo.loading);
@@ -197,9 +193,11 @@ export function VoiceoverGenerationStep({ videoData, onBack, onNext }: Voiceover
     return (
       <div className="flex flex-col items-center justify-center p-8 space-y-4">
         <Loader2 className="h-8 w-8 animate-spin" />
-        <p>Generating voiceovers for your video...</p>
+        <p>Generating voiceovers for your {videoData.videoType === 'shorts' ? 'short' : 'video'}...</p>
         <p className="text-sm text-muted-foreground">
-          Generated {progress} of {scriptSections.length} voiceovers
+          {videoData.videoType === 'shorts' 
+            ? 'Generating a concise voiceover for your short'
+            : `Generated ${progress} of ${scriptSections.length} voiceovers`}
         </p>
       </div>
     );
@@ -210,7 +208,10 @@ export function VoiceoverGenerationStep({ videoData, onBack, onNext }: Voiceover
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Generated Voiceovers</h3>
         <p className="text-muted-foreground">
-          Review the AI-generated voiceovers for your video. Each audio clip corresponds to a section of your script.
+          Review the AI-generated voiceovers for your {videoData.videoType === 'shorts' ? 'short' : 'video'}.
+          {videoData.videoType === 'shorts' 
+            ? ' The voiceover has been optimized for a short-form video.'
+            : ' Each audio clip corresponds to a section of your script.'}
         </p>
       </div>
 
@@ -218,7 +219,9 @@ export function VoiceoverGenerationStep({ videoData, onBack, onNext }: Voiceover
         {scriptSections.map((section, index) => (
           <Card key={index} className="p-4 space-y-4">
             <div className="space-y-2">
-              <p className="text-sm font-medium">Section {index + 1}</p>
+              <p className="text-sm font-medium">
+                {videoData.videoType === 'shorts' ? 'Short Script' : `Section ${index + 1}`}
+              </p>
               <ScrollArea className="h-[100px] w-full rounded-md border p-2">
                 <p className="text-sm text-muted-foreground">{section}</p>
               </ScrollArea>
@@ -244,7 +247,11 @@ export function VoiceoverGenerationStep({ videoData, onBack, onNext }: Voiceover
               ) : sectionVoiceovers[index].url ? (
                 <AudioPlayer
                   url={sectionVoiceovers[index].url!}
-                  onRegenerate={() => generateVoiceoverForSection(index, section)}
+                  onRegenerate={() => 
+                    videoData.videoType === 'shorts' 
+                      ? generateAllVoiceovers()
+                      : generateVoiceoverForSection(index, section)
+                  }
                 />
               ) : null}
             </div>
@@ -262,11 +269,12 @@ export function VoiceoverGenerationStep({ videoData, onBack, onNext }: Voiceover
             onClick={generateAllVoiceovers}
             disabled={isGenerating}
           >
-            Regenerate All Voiceovers
+            Regenerate {videoData.videoType === 'shorts' ? 'Voiceover' : 'All Voiceovers'}
           </Button>
           <Button 
             onClick={handleNext}
-            disabled={!isComplete || isGenerating}
+            // disabled={!isComplete || isGenerating}
+            disabled={isGenerating}
           >
             Continue to Music
           </Button>

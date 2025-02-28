@@ -10,15 +10,49 @@ import { ScriptStepData } from '@/types/video';
 interface ScriptGenerationStepProps {
   videoData: ScriptStepData;
   onBack: () => void;
-  onNext: (data: { script: string, videoId: string }) => void;
+  onNext: (data: { script: string; cleanScript: string; videoId: string }) => void;
 }
 
 export function ScriptGenerationStep({ videoData, onBack, onNext }: ScriptGenerationStepProps) {
-  console.log("video data in script generatation...", videoData);
   const [loading, setLoading] = useState(false);
   const [script, setScript] = useState<string>('');
   const [videoId, setVideoId] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  const cleanScript = (rawScript: string): string => {
+    // Split script into lines
+    const lines = rawScript.split('\n');
+    
+    // Filter out instruction lines (lines starting with common instruction markers)
+    const cleanedLines = lines.filter(line => {
+      const trimmedLine = line.trim().toLowerCase();
+      return !(
+        trimmedLine.startsWith('note:') ||
+        trimmedLine.startsWith('instruction:') ||
+        trimmedLine.startsWith('direction:') ||
+        trimmedLine.startsWith('->') ||
+        trimmedLine.startsWith('*') ||
+        trimmedLine.startsWith('[') ||
+        trimmedLine.startsWith('(')
+      );
+    });
+
+    // Join the lines back together
+    let cleanedScript = cleanedLines.join('\n').trim();
+
+    // For shorts, ensure script is not too long (rough approximation)
+    if (videoData.videoType === 'shorts') {
+      // Assuming average speaking rate of 150 words per minute
+      // and targeting 25-second video (leaving 5 seconds for transitions)
+      const maxWords = 62; // 150 words/minute * (25/60) minutes
+      const words = cleanedScript.split(/\s+/);
+      if (words.length > maxWords) {
+        cleanedScript = words.slice(0, maxWords).join(' ') + '...';
+      }
+    }
+
+    return cleanedScript;
+  };
 
   const generateScript = async () => {
     try {
@@ -30,7 +64,8 @@ export function ScriptGenerationStep({ videoData, onBack, onNext }: ScriptGenera
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          selectedIdea: videoData.selectedIdea
+          selectedIdea: videoData.selectedIdea,
+          videoType: videoData.videoType
         }),
       });
 
@@ -60,7 +95,8 @@ export function ScriptGenerationStep({ videoData, onBack, onNext }: ScriptGenera
 
   const handleNext = () => {
     if (script) {
-      onNext({ script, videoId });
+      const cleanedScript = cleanScript(script);
+      onNext({ script, cleanScript: cleanedScript, videoId });
     }
   };
 
@@ -70,7 +106,7 @@ export function ScriptGenerationStep({ videoData, onBack, onNext }: ScriptGenera
         <Loader2 className="h-8 w-8 animate-spin" />
         <p>Generating video script...</p>
         <p className="text-sm text-muted-foreground">
-          Our AI is crafting a compelling script based on your selected idea:
+          Our AI is crafting a compelling {videoData.videoType === 'shorts' ? 'short-form' : 'long-form'} script based on your selected idea:
           <span className="font-medium block mt-2">{videoData.selectedIdea.title}</span>
         </p>
       </div>
@@ -98,8 +134,13 @@ export function ScriptGenerationStep({ videoData, onBack, onNext }: ScriptGenera
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Generated Script</h3>
         <p className="text-muted-foreground">
-          Review the AI-generated script for your video titled "{videoData.selectedIdea.title}"
+          Review the AI-generated {videoData.videoType === 'shorts' ? 'short-form' : 'long-form'} script for your video titled "{videoData.selectedIdea.title}"
         </p>
+        {videoData.videoType === 'shorts' && (
+          <p className="text-sm text-yellow-600">
+            Note: The script will be automatically trimmed to ensure the final video is under 30 seconds.
+          </p>
+        )}
       </div>
 
       <Card className="p-4">

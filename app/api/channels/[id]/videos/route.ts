@@ -93,7 +93,7 @@ async function generateVideoIdeas(channelId: string, competitorVideos: Competito
   return JSON.parse(completion.choices[0].message.content || '[]');
 }
 
-async function generateScript(title: string, idea: string): Promise<string> {
+async function generateScript(title: string, idea: string, videoType: 'shorts' | 'long'): Promise<string> {
   const completion = await openai.chat.completions.create({
     messages: [
       {
@@ -102,7 +102,11 @@ async function generateScript(title: string, idea: string): Promise<string> {
       },
       {
         role: 'user',
-        content: `Write a detailed script for a YouTube video titled "${title}" with this idea: "${idea}". Structure the script in clear sections separated by double newlines.`,
+        content: `Write a ${videoType === 'shorts' ? 'concise script (25 seconds when spoken)' : 'detailed script'} for a YouTube ${videoType === 'shorts' ? 'Short' : 'video'} titled "${title}" with this idea: "${idea}". ${
+          videoType === 'shorts' 
+            ? 'Keep it extremely concise, engaging, and suitable for vertical short-form video. The script should be speakable within 25 seconds to allow for transitions.' 
+            : 'Structure the script in clear sections separated by double newlines.'
+        }`,
       },
     ],
     model: 'gpt-4',
@@ -148,7 +152,7 @@ async function generateVoiceover(text: string): Promise<string> {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'xi-api-key': 'sk_5fd60bb0b3a990d266acf7464350677e3810a67ea004ecda'
+        'xi-api-key': 'sk_0630dbe939f4ee8f536edd3be8268db1a1cdd56b80cf0174'
       },
       body: JSON.stringify({
         text: text,
@@ -254,7 +258,11 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       });
 
       // Generate script for the newly created video
-      const script = await generateScript(body.selectedIdea.title, body.selectedIdea.idea);
+      const script = await generateScript(
+        body.selectedIdea.title, 
+        body.selectedIdea.idea,
+        body.videoType || 'long'
+      );
       
       // Update video with generated script
       const updatedVideo = await prisma.video.update({
@@ -290,7 +298,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
           status: body.status,
         },
       });
-      return NextResponse.json(updatedVideo);
+      // Add memory-only fields to response
+      return NextResponse.json({
+        ...updatedVideo,
+        cleanScript: body.cleanScript,
+        videoType: body.videoType
+      });
     }
 
     // Update existing video

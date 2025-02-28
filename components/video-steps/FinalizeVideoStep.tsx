@@ -75,9 +75,11 @@ export function FinalizeVideoStep({ channelId, videoData, onBack, onComplete }: 
         body: JSON.stringify({
           selectedIdea: videoData.selectedIdea,
           script: videoData.script,
+          cleanScript: videoData.cleanScript,
           images: videoData.images,
           voiceovers: videoData.voiceovers,
           music: videoData.music,
+          videoType: videoData.videoType,
           status: 'completed'
         }),
       });
@@ -100,9 +102,11 @@ export function FinalizeVideoStep({ channelId, videoData, onBack, onComplete }: 
     return (
       <div className="flex flex-col items-center justify-center p-8 space-y-4">
         <CheckCircle2 className="h-16 w-16 text-primary" />
-        <h3 className="text-xl font-semibold">Video Created Successfully!</h3>
+        <h3 className="text-xl font-semibold">
+          {videoData.videoType === 'shorts' ? 'Short' : 'Video'} Created Successfully!
+        </h3>
         <p className="text-muted-foreground text-center">
-          Your video has been saved and is ready for production.
+          Your {videoData.videoType === 'shorts' ? 'YouTube Short' : 'video'} has been saved and is ready for production.
         </p>
       </div>
     );
@@ -112,7 +116,7 @@ export function FinalizeVideoStep({ channelId, videoData, onBack, onComplete }: 
     return (
       <div className="flex flex-col items-center justify-center p-8 space-y-4">
         <Loader2 className="h-8 w-8 animate-spin" />
-        <p>Finalizing your video...</p>
+        <p>Finalizing your {videoData.videoType === 'shorts' ? 'short' : 'video'}...</p>
       </div>
     );
   }
@@ -122,13 +126,20 @@ export function FinalizeVideoStep({ channelId, videoData, onBack, onComplete }: 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Review & Finalize</h3>
         <p className="text-muted-foreground">
-          Review all components of your video before finalizing.
+          Review all components of your {videoData.videoType === 'shorts' ? 'YouTube Short' : 'video'} before finalizing.
         </p>
+        {videoData.videoType === 'shorts' && (
+          <p className="text-sm text-yellow-600">
+            Note: Your content has been optimized for short-form video (≤ 30 seconds).
+          </p>
+        )}
       </div>
 
       <div className="space-y-4">
         <Card className="p-4">
-          <h4 className="font-medium mb-2">Video Title & Description</h4>
+          <h4 className="font-medium mb-2">
+            {videoData.videoType === 'shorts' ? 'Short' : 'Video'} Title & Description
+          </h4>
           <p className="text-lg font-semibold text-primary">{videoData.selectedIdea.title}</p>
           <p className="text-sm text-muted-foreground mt-2">{videoData.selectedIdea.idea}</p>
         </Card>
@@ -137,7 +148,7 @@ export function FinalizeVideoStep({ channelId, videoData, onBack, onComplete }: 
           <h4 className="font-medium mb-2">Script</h4>
           <ScrollArea className="h-[200px] w-full rounded-md border p-4">
             <div className="whitespace-pre-wrap font-mono text-sm">
-              {videoData.script}
+              {videoData.cleanScript || videoData.script}
             </div>
           </ScrollArea>
         </Card>
@@ -159,11 +170,15 @@ export function FinalizeVideoStep({ channelId, videoData, onBack, onComplete }: 
         </Card>
 
         <Card className="p-4">
-          <h4 className="font-medium mb-2">Voiceovers</h4>
+          <h4 className="font-medium mb-2">
+            {videoData.videoType === 'shorts' ? 'Voiceover' : 'Voiceovers'}
+          </h4>
           <div className="space-y-4">
             {videoData.voiceovers.map((url, index) => (
               <div key={index} className="flex items-center justify-between">
-                <span className="text-sm">Section {index + 1}</span>
+                <span className="text-sm">
+                  {videoData.videoType === 'shorts' ? 'Main Voiceover' : `Section ${index + 1}`}
+                </span>
                 <AudioPlayer url={url} />
               </div>
             ))}
@@ -189,7 +204,7 @@ export function FinalizeVideoStep({ channelId, videoData, onBack, onComplete }: 
             Back to Music
           </Button>
           <Button onClick={finalizeVideo} disabled={loading}>
-            Create Video
+            Create {videoData.videoType === 'shorts' ? 'Short' : 'Video'}
           </Button>
         </div>
       </div>

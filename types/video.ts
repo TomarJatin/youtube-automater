@@ -35,6 +35,7 @@ export interface GenerateVideoIdeasRequest {
 
 export interface CreateVideoRequest {
   selectedIdea: VideoIdea;
+  videoType: 'shorts' | 'long';
 }
 
 export interface GenerateImageRequest {
@@ -58,9 +59,11 @@ export interface UpdateVideoRequest {
 export interface FinalizeVideoRequest {
   selectedIdea: VideoIdea;
   script: string;
+  cleanScript: string;
   images: string[];
   voiceovers: string[];
   music: string;
+  videoType: 'shorts' | 'long';
   status: 'completed';
 }
 
@@ -75,7 +78,9 @@ export type VideoApiRequest =
 // Step Data Types
 export interface VideoStepData {
   selectedIdea?: VideoIdea;
+  videoType?: 'shorts' | 'long';
   script?: string;
+  cleanScript?: string;
   images?: string[];
   voiceovers?: string[];
   music?: string;

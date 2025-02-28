@@ -10,13 +10,14 @@ import { VideoIdea } from '@/types/video';
 
 interface VideoIdeasStepProps {
   channelId: string;
-  onNext: (data: { selectedIdea: VideoIdea }) => void;
+  onNext: (data: { selectedIdea: VideoIdea; videoType: 'shorts' | 'long' }) => void;
 }
 
 export function VideoIdeasStep({ channelId, onNext }: VideoIdeasStepProps) {
   const [loading, setLoading] = useState(false);
   const [ideas, setIdeas] = useState<VideoIdea[]>([]);
   const [selectedIdeaIndex, setSelectedIdeaIndex] = useState<number | null>(null);
+  const [videoType, setVideoType] = useState<'shorts' | 'long'>('long');
   const [error, setError] = useState<string | null>(null);
 
   const fetchVideoIdeas = async () => {
@@ -58,7 +59,10 @@ export function VideoIdeasStep({ channelId, onNext }: VideoIdeasStepProps) {
 
   const handleNext = () => {
     if (selectedIdeaIndex !== null) {
-      onNext({ selectedIdea: ideas[selectedIdeaIndex] });
+      onNext({ 
+        selectedIdea: ideas[selectedIdeaIndex],
+        videoType
+      });
     }
   };
 
@@ -87,6 +91,24 @@ export function VideoIdeasStep({ channelId, onNext }: VideoIdeasStepProps) {
 
   return (
     <div className="space-y-6">
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold">Select Video Type</h3>
+        <RadioGroup
+          value={videoType}
+          onValueChange={(value) => setVideoType(value as 'shorts' | 'long')}
+          className="flex items-center space-x-4"
+        >
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="long" id="long" />
+            <Label htmlFor="long">Long Form Video</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="shorts" id="shorts" />
+            <Label htmlFor="shorts">YouTube Shorts (≤ 30s)</Label>
+          </div>
+        </RadioGroup>
+      </div>
+
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Select a Video Idea</h3>
         <p className="text-muted-foreground">
