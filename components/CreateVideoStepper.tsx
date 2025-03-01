@@ -31,6 +31,7 @@ const steps = [
 interface CreateVideoStepperProps {
 	channelId: string;
 	onComplete: () => void;
+	inputVideoData?: VideoStepData;
 }
 
 type StepData = {
@@ -42,20 +43,44 @@ type StepData = {
 	6: FinalizeStepData;
 };
 
-export function CreateVideoStepper({ channelId, onComplete }: CreateVideoStepperProps) {
-	const [currentStep, setCurrentStep] = useState(1);
-	const [videoData, setVideoData] = useState<VideoStepData>({});
+export function CreateVideoStepper({ channelId, onComplete, inputVideoData }: CreateVideoStepperProps) {
+	const [currentStep, setCurrentStep] = useState(() => {
+		// Try to load saved step from localStorage
+		// const savedStep = localStorage.getItem(`video-stepper-step-${channelId}`);
+		// return savedStep ? parseInt(savedStep) : 1;
+		return 1;
+	});
+	
+	const [videoData, setVideoData] = useState<VideoStepData>(inputVideoData || {});
+
+	console.log('videoData...', videoData);
 
 	const updateVideoData = (data: Partial<VideoStepData>) => {
-		setVideoData((prev) => ({ ...prev, ...data }));
+		const newData = { ...videoData, ...data };
+		setVideoData(newData);
+		// Save to localStorage
+		// localStorage.setItem(`video-stepper-${channelId}`, JSON.stringify(newData));
 	};
 
 	const handleNext = () => {
-		setCurrentStep((prev) => Math.min(prev + 1, steps.length));
+		const nextStep = Math.min(currentStep + 1, steps.length);
+		setCurrentStep(nextStep);
+		// Save current step to localStorage
+		// localStorage.setItem(`video-stepper-step-${channelId}`, nextStep.toString());
 	};
 
 	const handleBack = () => {
-		setCurrentStep((prev) => Math.max(prev - 1, 1));
+		const prevStep = Math.max(currentStep - 1, 1);
+		setCurrentStep(prevStep);
+		// Save current step to localStorage
+		// localStorage.setItem(`video-stepper-step-${channelId}`, prevStep.toString());
+	};
+
+	// Clear localStorage when stepper is completed
+	const handleComplete = () => {
+		// localStorage.removeItem(`video-stepper-step-${channelId}`);
+		// localStorage.removeItem(`video-stepper-${channelId}`);
+		onComplete();
 	};
 
 	const validateStepData = <T extends keyof StepData>(step: T, data: VideoStepData): data is StepData[T] => {
@@ -143,13 +168,15 @@ export function CreateVideoStepper({ channelId, onComplete }: CreateVideoStepper
 			case 1:
 				return (
 					<VideoIdeasStep
+						videoData={videoData}
 						channelId={channelId}
-						onNext={(data: { selectedIdea: VideoIdea; videoType: 'shorts' | 'long'; videoId: string }) => {
+						onNext={(data: { selectedIdea: VideoIdea; videoType: 'shorts' | 'long'; videoId: string; ideas: VideoIdea[] }) => {
 							console.log('data in video ideas step...', data, channelId);
 							updateVideoData({
 								...data,
 								channelId,
 								videoId: data.videoId, // Store the videoId from initial creation
+								ideas: data.ideas,
 							});
 							handleNext();
 						}}
@@ -240,9 +267,9 @@ export function CreateVideoStepper({ channelId, onComplete }: CreateVideoStepper
 				return (
 					<FinalizeVideoStep
 						channelId={channelId}
-						videoData={videoData as FinalizeStepData}
+						videoData={videoData}
 						onBack={handleBack}
-						onComplete={onComplete}
+						onComplete={handleComplete}
 					/>
 				);
 			default:

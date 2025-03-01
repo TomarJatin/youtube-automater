@@ -17,8 +17,9 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Trash2, PlayCircle, Eye, Music } from 'lucide-react';
+import { Loader2, Trash2, PlayCircle, Eye, Music, ArrowRight } from 'lucide-react';
 import { Video } from '@/types/video';
+import { CreateVideoStepper } from '@/components/CreateVideoStepper';
 
 interface VideoListProps {
 	channelId: string;
@@ -95,25 +96,59 @@ export default function VideoList({ channelId }: VideoListProps) {
 					<CardHeader>
 						<div className='flex items-start justify-between'>
 							<CardTitle className='text-lg'>{video.title}</CardTitle>
-							<AlertDialog>
-								<AlertDialogTrigger asChild>
-									<Button variant='ghost' size='icon' className='text-destructive'>
-										<Trash2 className='h-4 w-4' />
-									</Button>
-								</AlertDialogTrigger>
-								<AlertDialogContent>
-									<AlertDialogHeader>
-										<AlertDialogTitle>Delete Video</AlertDialogTitle>
-										<AlertDialogDescription>
-											Are you sure you want to delete this video? This action cannot be undone.
-										</AlertDialogDescription>
-									</AlertDialogHeader>
-									<AlertDialogFooter>
-										<AlertDialogCancel>Cancel</AlertDialogCancel>
-										<AlertDialogAction onClick={() => handleDelete(video.id)}>Delete</AlertDialogAction>
-									</AlertDialogFooter>
-								</AlertDialogContent>
-							</AlertDialog>
+							<div className='flex items-center gap-2'>
+								{video.status === 'in_progress' && (
+									<Dialog>
+										<DialogTrigger asChild>
+											<Button variant='outline' size='icon' className='text-primary'>
+												<ArrowRight className='h-4 w-4' />
+											</Button>
+										</DialogTrigger>
+										<DialogContent className='max-h-[90vh] max-w-4xl overflow-y-auto'>
+											<DialogHeader>
+												<DialogTitle>Continue Video Creation</DialogTitle>
+											</DialogHeader>
+											<CreateVideoStepper
+												channelId={channelId}
+												onComplete={() => {
+													fetchVideos();
+												}}
+												inputVideoData={{
+													selectedIdea: {
+														title: video.title,
+														idea: video.idea
+													},
+													videoType: 'long',
+													videoId: video.id,
+													script: video.script,
+													images: video.images || [],
+													voiceovers: video.voiceovers || [],
+													music: video.music,
+												}}
+											/>
+										</DialogContent>
+									</Dialog>
+								)}
+								<AlertDialog>
+									<AlertDialogTrigger asChild>
+										<Button variant='ghost' size='icon' className='text-destructive'>
+											<Trash2 className='h-4 w-4' />
+										</Button>
+									</AlertDialogTrigger>
+									<AlertDialogContent>
+										<AlertDialogHeader>
+											<AlertDialogTitle>Delete Video</AlertDialogTitle>
+											<AlertDialogDescription>
+												Are you sure you want to delete this video? This action cannot be undone.
+											</AlertDialogDescription>
+										</AlertDialogHeader>
+										<AlertDialogFooter>
+											<AlertDialogCancel>Cancel</AlertDialogCancel>
+											<AlertDialogAction onClick={() => handleDelete(video.id)}>Delete</AlertDialogAction>
+										</AlertDialogFooter>
+									</AlertDialogContent>
+								</AlertDialog>
+							</div>
 						</div>
 					</CardHeader>
 					<CardContent className='relative flex-grow space-y-4'>

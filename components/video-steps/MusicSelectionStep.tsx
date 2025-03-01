@@ -8,10 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, PlayCircle, PauseCircle, Search } from 'lucide-react';
-import { MusicStepData } from '@/types/video';
+import { MusicStepData, VideoStepData } from '@/types/video';
 
 interface MusicSelectionStepProps {
-  videoData: MusicStepData;
+  videoData: VideoStepData;
   onBack: () => void;
   onNext: (data: { music: string }) => void;
 }

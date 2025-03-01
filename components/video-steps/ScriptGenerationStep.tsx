@@ -5,18 +5,18 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ScriptStepData } from '@/types/video';
+import { ScriptStepData, VideoStepData } from '@/types/video';
 
 interface ScriptGenerationStepProps {
-	videoData: ScriptStepData;
+	videoData: VideoStepData;
 	onBack: () => void;
 	onNext: (data: { script: string; cleanScript: string; videoId: string }) => void;
 }
 
 export function ScriptGenerationStep({ videoData, onBack, onNext }: ScriptGenerationStepProps) {
 	const [loading, setLoading] = useState(false);
-	const [script, setScript] = useState<string>('');
-	const [videoId, setVideoId] = useState('');
+	const [script, setScript] = useState<string>(videoData?.script || '');
+	const [videoId, setVideoId] = useState(videoData?.videoId || '');
 	const [error, setError] = useState<string | null>(null);
 
 	const cleanScript = (rawScript: string): string => {
@@ -94,12 +94,6 @@ export function ScriptGenerationStep({ videoData, onBack, onNext }: ScriptGenera
 		}
 	};
 
-	useEffect(() => {
-		if (!videoData.script) {
-			generateScript();
-		}
-	}, []);
-
 	const handleNext = () => {
 		if (script) {
 			const cleanedScript = cleanScript(script);
@@ -115,7 +109,7 @@ export function ScriptGenerationStep({ videoData, onBack, onNext }: ScriptGenera
 				<p className='text-sm text-muted-foreground'>
 					Our AI is crafting a compelling {videoData.videoType === 'shorts' ? 'short-form' : 'long-form'} script based
 					on your selected idea:
-					<span className='mt-2 block font-medium'>{videoData.selectedIdea.title}</span>
+					<span className='mt-2 block font-medium'>{videoData.selectedIdea?.idea}</span>
 				</p>
 			</div>
 		);
@@ -135,13 +129,40 @@ export function ScriptGenerationStep({ videoData, onBack, onNext }: ScriptGenera
 		);
 	}
 
+	if (!script) {
+		return (
+			<div className='space-y-6'>
+				<div className='space-y-4'>
+					<h3 className='text-lg font-semibold'>Generate Script</h3>
+					<p className='text-muted-foreground'>
+						Generate a {videoData.videoType === 'shorts' ? 'short-form' : 'long-form'} script for your video titled "{videoData.selectedIdea?.title}"
+					</p>
+					{videoData.videoType === 'shorts' && (
+						<p className='text-sm text-yellow-600'>
+							Note: The script will be automatically trimmed to ensure the final video is under 30 seconds.
+						</p>
+					)}
+				</div>
+
+				<div className='flex justify-between pt-4'>
+					<Button variant='outline' onClick={onBack}>
+						Back to Ideas
+					</Button>
+					<Button onClick={generateScript}>
+						Generate Script
+					</Button>
+				</div>
+			</div>
+		);
+	}
+
 	return (
 		<div className='space-y-6'>
 			<div className='space-y-4'>
-				<h3 className='text-lg font-semibold'>Generated Script</h3>
+				<h3 className='text-lg font-semibold'>Review Generated Script</h3>
 				<p className='text-muted-foreground'>
 					Review the AI-generated {videoData.videoType === 'shorts' ? 'short-form' : 'long-form'} script for your video
-					titled "{videoData.selectedIdea.title}"
+					titled "{videoData.selectedIdea?.title}"
 				</p>
 				{videoData.videoType === 'shorts' && (
 					<p className='text-sm text-yellow-600'>

@@ -5,11 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ImageStepData } from '@/types/video';
+import { ImageStepData, VideoStepData } from '@/types/video';
 import Image from 'next/image';
 
 interface ImageGenerationStepProps {
-	videoData: ImageStepData;
+	videoData: VideoStepData;
 	onBack: () => void;
 	onNext: (data: { images: string[] }) => void;
 }
@@ -22,9 +22,15 @@ interface SectionImage {
 
 export function ImageGenerationStep({ videoData, onBack, onNext }: ImageGenerationStepProps) {
 	// Use cleanScript if available, otherwise fall back to regular script
-	const scriptToUse = videoData.cleanScript || videoData.script;
+	const scriptToUse = videoData.cleanScript || videoData.script || "";
 	const scriptSections = scriptToUse.split('\n\n').filter((section) => section.trim());
-	const [sectionImages, setSectionImages] = useState<SectionImage[]>(scriptSections.map(() => ({ loading: false })));
+	const [sectionImages, setSectionImages] = useState<SectionImage[]>(scriptSections.map((section, index) => {
+		if(videoData.images && videoData.images.length > 0){
+			console.log("videoData.images: ", videoData.images, index, videoData.images.length)
+			return { url: index < videoData.images.length ? videoData.images[index] : videoData.images[0], loading: false };
+		}
+		return { loading: false };
+	}));
 	const [error, setError] = useState<string | null>(null);
 
 	const generateImageForSection = async (sectionIndex: number, section: string) => {

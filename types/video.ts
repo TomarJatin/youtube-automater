@@ -87,6 +87,7 @@ export interface VideoStepData {
 	music?: string;
 	channelId?: string;
 	videoId?: string;
+	ideas?: VideoIdea[];
 }
 
 export interface ScriptStepData extends VideoStepData {

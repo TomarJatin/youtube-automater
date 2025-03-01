@@ -5,10 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Loader2, PlayCircle, PauseCircle, RefreshCw } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { VoiceoverStepData } from '@/types/video';
+import { VideoStepData, VoiceoverStepData } from '@/types/video';
 
 interface VoiceoverGenerationStepProps {
-	videoData: VoiceoverStepData;
+	videoData: VideoStepData;
 	onBack: () => void;
 	onNext: (data: { voiceovers: string[] }) => void;
 }
@@ -62,16 +62,23 @@ function AudioPlayer({ url, onRegenerate }: AudioPlayerProps) {
 			</Button>
 		</div>
 	);
-}
+} 
 
 export function VoiceoverGenerationStep({ videoData, onBack, onNext }: VoiceoverGenerationStepProps) {
 	// Use cleanScript if available, otherwise fall back to regular script
-	const scriptToUse = videoData.cleanScript || videoData.script;
+	const scriptToUse = videoData.cleanScript || videoData.script || "";
 	const scriptSections = scriptToUse.split('\n\n').filter((section) => section.trim());
 
 	const [sectionVoiceovers, setSectionVoiceovers] = useState<SectionVoiceover[]>(
-		scriptSections.map(() => ({ loading: false }))
+		scriptSections.map((voiceover, index) => {
+			if(videoData.voiceovers && videoData.voiceovers.length > 0){
+				return { url: index < videoData.voiceovers.length ? videoData.voiceovers[index] : videoData.voiceovers[0], loading: false };
+			}
+			return { loading: false };
+		})
 	);
+
+
 	const [error, setError] = useState<string | null>(null);
 
 	const generateAllVoiceovers = async () => {
@@ -161,10 +168,6 @@ export function VoiceoverGenerationStep({ videoData, onBack, onNext }: Voiceover
 
 	const handleNext = () => {
 		const allVoiceovers = sectionVoiceovers.map((vo) => vo.url).filter((url): url is string => url !== undefined);
-
-		// if (allVoiceovers.length === scriptSections.length) {
-		//   onNext({ voiceovers: allVoiceovers });
-		// }
 		onNext({ voiceovers: allVoiceovers });
 	};
 
@@ -187,10 +190,35 @@ export function VoiceoverGenerationStep({ videoData, onBack, onNext }: Voiceover
 		);
 	}
 
+	if (!isComplete && !isGenerating) {
+		return (
+			<div className='space-y-6'>
+				<div className='space-y-4'>
+					<h3 className='text-lg font-semibold'>Generate Voiceovers</h3>
+					<p className='text-muted-foreground'>
+						Generate AI voiceovers for your {videoData.videoType === 'shorts' ? 'short' : 'video'}.
+						{videoData.videoType === 'shorts'
+							? ' We\'ll create one optimized voiceover for your short.'
+							: ' We\'ll create separate voiceovers for each section of your script.'}
+					</p>
+				</div>
+
+				<div className='flex justify-between pt-4'>
+					<Button variant='outline' onClick={onBack}>
+						Back to Images
+					</Button>
+					<Button onClick={generateAllVoiceovers}>
+						Generate {videoData.videoType === 'shorts' ? 'Voiceover' : 'All Voiceovers'}
+					</Button>
+				</div>
+			</div>
+		);
+	}
+
 	return (
 		<div className='space-y-6'>
 			<div className='space-y-4'>
-				<h3 className='text-lg font-semibold'>Generated Voiceovers</h3>
+				<h3 className='text-lg font-semibold'>Review Generated Voiceovers</h3>
 				<p className='text-muted-foreground'>
 					Review the AI-generated voiceovers for your {videoData.videoType === 'shorts' ? 'short' : 'video'}.
 					{videoData.videoType === 'shorts'
