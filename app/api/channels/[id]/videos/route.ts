@@ -159,7 +159,7 @@ async function generateVoiceover(text: string): Promise<string> {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
-				'xi-api-key': 'sk_0630dbe939f4ee8f536edd3be8268db1a1cdd56b80cf0174',
+				'xi-api-key': 'sk_eadbd9a4853780b02c0c0e173b7c34eccb8bb3fb8fb78f5e',
 			},
 			body: JSON.stringify({
 				text: text,
@@ -191,6 +191,48 @@ async function generateVoiceover(text: string): Promise<string> {
 		return `https://${process.env.AWS_BUCKET_NAME}.s3.amazonaws.com/${key}`;
 	} catch (error) {
 		console.error('Error generating voiceover:', error);
+		throw error;
+	}
+}
+
+// Add new function to create subtitle file
+async function createSubtitleFile(text: string, voiceoverPath: string, outputPath: string): Promise<string> {
+	try {
+		// Get audio duration
+		const { stdout: durationStr } = await execAsync(
+			`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${voiceoverPath}"`
+		);
+		const totalDuration = parseFloat(durationStr);
+		
+		// Split text into words
+		const words = text.split(/\s+/);
+		const wordDuration = totalDuration / words.length;
+		
+		// Create SRT subtitle file
+		let srtContent = '';
+		words.forEach((word, index) => {
+			const startTime = index * wordDuration;
+			const endTime = (index + 1) * wordDuration;
+			
+			// Format time as HH:MM:SS,mmm
+			const formatTime = (time: number) => {
+				const hours = Math.floor(time / 3600);
+				const minutes = Math.floor((time % 3600) / 60);
+				const seconds = Math.floor(time % 60);
+				const milliseconds = Math.floor((time % 1) * 1000);
+				
+				return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')},${milliseconds.toString().padStart(3, '0')}`;
+			};
+			
+			srtContent += `${index + 1}\n`;
+			srtContent += `${formatTime(startTime)} --> ${formatTime(endTime)}\n`;
+			srtContent += `${word}\n\n`;
+		});
+		
+		await fs.promises.writeFile(outputPath, srtContent);
+		return outputPath;
+	} catch (error) {
+		console.error('Error creating subtitle file:', error);
 		throw error;
 	}
 }
@@ -317,6 +359,11 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 					imageFiles.map(async (imagePath, i) => {
 						const voiceoverPath = voiceoverFiles[i];
 						const outputPath = path.join(tempDir, `segment-${i}.mp4`);
+						
+						// Create subtitle file for this segment
+						const subtitleText = body.cleanScript.split('\n\n')[i] || '';
+						const subtitlePath = path.join(tempDir, `subtitle-${i}.srt`);
+						await createSubtitleFile(subtitleText, voiceoverPath, subtitlePath);
 
 						// Get audio duration
 						const { stdout: durationStr } = await execAsync(
@@ -324,10 +371,11 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 						);
 						const duration = parseFloat(durationStr);
 
-						// Create segment with image and voiceover
+						// Create segment with image, voiceover, and subtitles
 						await execAsync(
 							`ffmpeg -loop 1 -i "${imagePath}" -i "${voiceoverPath}" -c:v libx264 -c:a aac -strict experimental ` +
-								`-t ${duration} -vf "scale=1080:1920,fps=30" -pix_fmt yuv420p "${outputPath}"`
+							`-t ${duration} -vf "scale=1080:1920,fps=30,subtitles=${subtitlePath}:force_style='FontName=Arial,FontSize=36,Alignment=10,PrimaryColour=&Hffffff,OutlineColour=&H000000,BorderStyle=3,Outline=2'" ` +
+							`-pix_fmt yuv420p "${outputPath}"`
 						);
 
 						return outputPath;
