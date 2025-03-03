@@ -154,25 +154,31 @@ async function generateImage(prompt: string): Promise<string> {
 
 async function generateVoiceover(text: string): Promise<string> {
 	try {
-		// Call ElevenLabs API to generate voice
+		// Use environment variable for API key instead of hardcoding
+		const apiKey = process.env.ELEVENLABS_API_KEY || 'sk_540872f6e2e1a64ba6444148db1452c90090a66e7fc42354';
+		
+		console.log("Calling ElevenLabs API with text length:", text.length);
+		
 		const response = await fetch('https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM', {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
-				'xi-api-key': 'sk_eadbd9a4853780b02c0c0e173b7c34eccb8bb3fb8fb78f5e',
+				'xi-api-key': apiKey
 			},
 			body: JSON.stringify({
 				text: text,
-				model_id: 'eleven_monolingual_v1',
+				model_id: "eleven_monolingual_v1",
 				voice_settings: {
 					stability: 0.5,
-					similarity_boost: 0.75,
-				},
-			}),
+					similarity_boost: 0.75
+				}
+			})
 		});
 
 		if (!response.ok) {
-			throw new Error(`ElevenLabs API error: ${response.statusText}`);
+			const errorText = await response.text();
+			console.error(`ElevenLabs API error (${response.status}): ${errorText}`);
+			throw new Error(`ElevenLabs API error: ${response.statusText} (${response.status})`);
 		}
 
 		const audioBuffer = await response.arrayBuffer();
@@ -191,6 +197,28 @@ async function generateVoiceover(text: string): Promise<string> {
 		return `https://${process.env.AWS_BUCKET_NAME}.s3.amazonaws.com/${key}`;
 	} catch (error) {
 		console.error('Error generating voiceover:', error);
+		throw error;
+	}
+}
+
+// Add new function to upload music track to S3
+async function uploadMusicTrack(file: Buffer, contentType: string): Promise<string> {
+	try {
+		const key = `music/${Date.now()}-${Math.random().toString(36).substring(7)}.mp3`;
+
+		await s3Client.send(
+			new PutObjectCommand({
+				Bucket: process.env.AWS_BUCKET_NAME!,
+				Key: key,
+				Body: file,
+				ContentType: contentType,
+				ACL: 'public-read',
+			})
+		);
+
+		return `https://${process.env.AWS_BUCKET_NAME}.s3.amazonaws.com/${key}`;
+	} catch (error) {
+		console.error('Error uploading music track:', error);
 		throw error;
 	}
 }
@@ -354,6 +382,15 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 					})
 				);
 
+				// Download background music if provided
+				let musicPath = '';
+				if (body.music) {
+					const response = await fetch(body.music);
+					const buffer = await response.arrayBuffer();
+					musicPath = path.join(tempDir, 'background-music.mp3');
+					await fs.promises.writeFile(musicPath, Buffer.from(buffer));
+				}
+
 				// Generate video segments
 				const segmentFiles = await Promise.all(
 					imageFiles.map(async (imagePath, i) => {
@@ -370,24 +407,105 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 							`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${voiceoverPath}"`
 						);
 						const duration = parseFloat(durationStr);
+						const frames = Math.floor(duration * 30); // 30fps
 
-						// Create segment with image, voiceover, and subtitles
+						// Create more effective animations while maintaining vertical orientation
+						// Use separate filter for each animation type to ensure they work properly
+						const animations = [
+							// Slow zoom in
+							`scale=1080:1920,zoompan=z='min(1.0+0.0015*n,1.5)':x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':d=${frames}:fps=30`,
+							
+							// Slow zoom out
+							`scale=1080:1920,zoompan=z='max(1.5-0.0015*n,1.0)':x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':d=${frames}:fps=30`,
+							
+							// Pan left to right with fixed zoom
+							`scale=1080:1920,zoompan=z=1.2:x='if(lt(on,1),0,min(on/(${frames})*200,200))':y='(ih-ih/zoom)/2':d=${frames}:fps=30`,
+							
+							// Pan right to left with fixed zoom
+							`scale=1080:1920,zoompan=z=1.2:x='if(lt(on,1),200,max(200-on/(${frames})*200,0))':y='(ih-ih/zoom)/2':d=${frames}:fps=30`,
+							
+							// Pan top to bottom with fixed zoom
+							`scale=1080:1920,zoompan=z=1.2:x='(iw-iw/zoom)/2':y='if(lt(on,1),0,min(on/(${frames})*200,200))':d=${frames}:fps=30`,
+							
+							// Pan bottom to top with fixed zoom
+							`scale=1080:1920,zoompan=z=1.2:x='(iw-iw/zoom)/2':y='if(lt(on,1),200,max(200-on/(${frames})*200,0))':d=${frames}:fps=30`,
+						];
+						
+						// Select a random animation
+						const randomAnimation = animations[Math.floor(Math.random() * animations.length)];
+						
+						// Create segment with image, voiceover, and subtitles with animation
+						// Ensure vertical orientation with 1080x1920 dimensions
 						await execAsync(
 							`ffmpeg -loop 1 -i "${imagePath}" -i "${voiceoverPath}" -c:v libx264 -c:a aac -strict experimental ` +
-							`-t ${duration} -vf "scale=1080:1920,fps=30,subtitles=${subtitlePath}:force_style='FontName=Arial,FontSize=36,Alignment=10,PrimaryColour=&Hffffff,OutlineColour=&H000000,BorderStyle=3,Outline=2'" ` +
-							`-pix_fmt yuv420p "${outputPath}"`
+							`-t ${duration} -vf "${randomAnimation},subtitles=${subtitlePath}:force_style='FontName=Montserrat,FontSize=28,Alignment=10,PrimaryColour=&Hffffff,OutlineColour=&H000000,BorderStyle=1,Outline=1.5,Shadow=1,MarginV=20'" ` +
+							`-pix_fmt yuv420p -shortest "${outputPath}"`
 						);
 
 						return outputPath;
 					})
 				);
 
-				// Concatenate segments
-				const listFile = path.join(tempDir, 'segments.txt');
-				await fs.promises.writeFile(listFile, segmentFiles.map((f) => `file '${f}'`).join('\n'));
+				// Create transition videos between segments
+				const transitionFiles = [];
+				for (let i = 0; i < segmentFiles.length - 1; i++) {
+					const transitionPath = path.join(tempDir, `transition-${i}.mp4`);
+					
+					// Get first frame of next segment
+					const nextSegmentFirstFrame = path.join(tempDir, `next-segment-${i}-first-frame.png`);
+					await execAsync(`ffmpeg -i "${segmentFiles[i+1]}" -vframes 1 "${nextSegmentFirstFrame}"`);
+					
+					// Get last frame of current segment
+					const currentSegmentLastFrame = path.join(tempDir, `current-segment-${i}-last-frame.png`);
+					await execAsync(`ffmpeg -sseof -0.1 -i "${segmentFiles[i]}" -update 1 -q:v 1 "${currentSegmentLastFrame}"`);
+					
+					// Create 0.5 second crossfade transition
+					await execAsync(
+						`ffmpeg -loop 1 -t 0.5 -i "${currentSegmentLastFrame}" -loop 1 -t 0.5 -i "${nextSegmentFirstFrame}" ` +
+						`-filter_complex "xfade=transition=fade:duration=0.5:offset=0,scale=1080:1920" ` +
+						`-c:v libx264 -pix_fmt yuv420p "${transitionPath}"`
+					);
+					
+					transitionFiles.push(transitionPath);
+				}
 
+				// Create a new list file that includes transitions
+				const listFileWithTransitions = path.join(tempDir, 'segments-with-transitions.txt');
+				let fileContent = `file '${segmentFiles[0]}'\n`;
+
+				for (let i = 0; i < transitionFiles.length; i++) {
+					fileContent += `file '${transitionFiles[i]}'\n`;
+					fileContent += `file '${segmentFiles[i+1]}'\n`;
+				}
+
+				await fs.promises.writeFile(listFileWithTransitions, fileContent);
+
+				// Concatenate all segments with transitions
+				const concatenatedVideoPath = path.join(tempDir, 'concatenated.mp4');
+				await execAsync(`ffmpeg -f concat -safe 0 -i "${listFileWithTransitions}" -c copy "${concatenatedVideoPath}"`);
+
+				// Final video path
 				const finalVideoPath = path.join(tempDir, 'final.mp4');
-				await execAsync(`ffmpeg -f concat -safe 0 -i "${listFile}" -c copy "${finalVideoPath}"`);
+
+				// If music is provided, add it to the video with proper volume adjustment
+				if (musicPath) {
+					// Get video duration
+					const { stdout: videoDurationStr } = await execAsync(
+						`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${concatenatedVideoPath}"`
+					);
+					const videoDuration = parseFloat(videoDurationStr);
+
+					// Add background music with volume lowered and looped if necessary
+					await execAsync(
+						`ffmpeg -i "${concatenatedVideoPath}" -i "${musicPath}" -filter_complex ` +
+						`"[1:a]volume=0.2,aloop=loop=-1:size=0,atrim=0:${videoDuration}[a1];` +
+						`[0:a][a1]amix=inputs=2:duration=first:dropout_transition=2[aout]" ` +
+						`-map 0:v -map "[aout]" -c:v copy -c:a aac -strict experimental "${finalVideoPath}"`
+					);
+				} else {
+					// If no music, just copy the concatenated video
+					await fs.promises.copyFile(concatenatedVideoPath, finalVideoPath);
+				}
 
 				// Upload to S3
 				const videoBuffer = await fs.promises.readFile(finalVideoPath);
@@ -407,24 +525,27 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
 				console.log('generated video ...', videoUrl);
 
-				// Update video in database
-				const updatedVideo = await prisma.video.update({
-					where: { id: videoId! },
-					data: {
-						script: body.script,
-						images: body.images,
-						voiceovers: body.voiceovers,
-						music: body.music,
-						status: body.status,
-						videoUrl: videoUrl,
-					},
-				});
+				// Only update the database if this is not a preview
+				if (body.status === 'completed') {
+					// Update video in database
+					const updatedVideo = await prisma.video.update({
+						where: { id: videoId! },
+						data: {
+							script: body.script,
+							images: body.images,
+							voiceovers: body.voiceovers,
+							music: body.music,
+							status: body.status,
+							videoUrl: videoUrl,
+						},
+					});
+				}
 
 				// Cleanup
 				await fs.promises.rm(tempDir, { recursive: true, force: true });
 
 				return NextResponse.json({
-					...updatedVideo,
+					videoUrl,
 					cleanScript: body.cleanScript,
 					videoType: body.videoType,
 				});

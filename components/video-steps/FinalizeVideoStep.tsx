@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Loader2, CheckCircle2, PlayCircle, PauseCircle } from 'lucide-react';
+import { Loader2, CheckCircle2, PlayCircle, PauseCircle, RefreshCw } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { FinalizeStepData } from '@/types/video';
 import Image from 'next/image';
@@ -49,11 +49,14 @@ export function FinalizeVideoStep({ channelId, videoData, onBack, onComplete }: 
 	const [error, setError] = useState<string | null>(null);
 	const [success, setSuccess] = useState(false);
 	const [videoUrl, setVideoUrl] = useState<string | null>(null);
+	const [isPreviewMode, setIsPreviewMode] = useState(false);
+	const [isRegenerating, setIsRegenerating] = useState(false);
 
-	const finalizeVideo = async () => {
+	const generateVideo = async (isPreview = false) => {
 		try {
 			setLoading(true);
 			setError(null);
+			setIsRegenerating(false);
 
 			const response = await fetch(`/api/channels/${channelId}/videos?videoId=${videoData.videoId}`, {
 				method: 'POST',
@@ -68,24 +71,48 @@ export function FinalizeVideoStep({ channelId, videoData, onBack, onComplete }: 
 					voiceovers: videoData.voiceovers,
 					music: videoData.music,
 					videoType: videoData.videoType,
-					status: 'completed',
+					status: isPreview ? 'preview' : 'completed',
 				}),
 			});
 
-			if (!response.ok) throw new Error('Failed to save video');
+			if (!response.ok) throw new Error('Failed to generate video');
 
 			const data = await response.json();
 			setVideoUrl(data.videoUrl);
-			setSuccess(true);
-			setTimeout(() => {
-				onComplete();
-			}, 2000);
+			
+			if (!isPreview) {
+				setSuccess(true);
+				setTimeout(() => {
+					onComplete();
+				}, 2000);
+			} else {
+				setIsPreviewMode(true);
+			}
 		} catch (error) {
 			console.error('Error:', error);
-			setError('Failed to save video. Please try again.');
+			setError('Failed to generate video. Please try again.');
 		} finally {
 			setLoading(false);
 		}
+	};
+
+	const finalizeVideo = async () => {
+		await generateVideo(false);
+	};
+
+	const previewVideo = async () => {
+		await generateVideo(true);
+	};
+
+	const regenerateVideo = async () => {
+		setIsRegenerating(true);
+		setVideoUrl(null);
+		await generateVideo(true);
+	};
+
+	const exitPreviewMode = () => {
+		setIsPreviewMode(false);
+		setVideoUrl(null);
 	};
 
 	if (success) {
@@ -114,7 +141,54 @@ export function FinalizeVideoStep({ channelId, videoData, onBack, onComplete }: 
 		return (
 			<div className='flex flex-col items-center justify-center space-y-4 p-8'>
 				<Loader2 className='h-8 w-8 animate-spin' />
-				<p>Finalizing your {videoData.videoType === 'shorts' ? 'short' : 'video'}...</p>
+				<p>
+					{isRegenerating
+						? 'Regenerating your video...'
+						: isPreviewMode
+						? 'Generating video preview...'
+						: `Finalizing your ${videoData.videoType === 'shorts' ? 'short' : 'video'}...`}
+				</p>
+			</div>
+		);
+	}
+
+	if (isPreviewMode && videoUrl) {
+		return (
+			<div className='space-y-6'>
+				<div className='space-y-4'>
+					<h3 className='text-lg font-semibold'>Video Preview</h3>
+					<p className='text-muted-foreground'>
+						Review your {videoData.videoType === 'shorts' ? 'YouTube Short' : 'video'} before finalizing.
+					</p>
+				</div>
+
+				<div className='flex flex-col items-center space-y-6'>
+					<div className='w-full max-w-md'>
+						<video className='w-full rounded-lg shadow-lg' controls autoPlay>
+							<source src={videoUrl} type='video/mp4' />
+							Your browser does not support the video tag.
+						</video>
+					</div>
+
+					{error && (
+						<div className='text-center text-destructive'>
+							<p>{error}</p>
+						</div>
+					)}
+
+					<div className='flex w-full justify-between space-x-4'>
+						<Button variant='outline' onClick={exitPreviewMode}>
+							Back to Edit
+						</Button>
+						<Button variant='outline' onClick={regenerateVideo} disabled={loading} className='gap-2'>
+							<RefreshCw className='h-4 w-4' />
+							Regenerate Video
+						</Button>
+						<Button onClick={finalizeVideo} disabled={loading}>
+							Finalize {videoData.videoType === 'shorts' ? 'Short' : 'Video'}
+						</Button>
+					</div>
+				</div>
 			</div>
 		);
 	}
@@ -193,9 +267,14 @@ export function FinalizeVideoStep({ channelId, videoData, onBack, onComplete }: 
 					<Button variant='outline' onClick={onBack}>
 						Back to Music
 					</Button>
-					<Button onClick={finalizeVideo} disabled={loading}>
-						Create {videoData.videoType === 'shorts' ? 'Short' : 'Video'}
-					</Button>
+					<div className='space-x-3'>
+						<Button variant='outline' onClick={previewVideo} disabled={loading}>
+							Preview Video
+						</Button>
+						<Button onClick={finalizeVideo} disabled={loading}>
+							Create {videoData.videoType === 'shorts' ? 'Short' : 'Video'}
+						</Button>
+					</div>
 				</div>
 			</div>
 		</div>

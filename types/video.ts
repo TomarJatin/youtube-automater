@@ -65,7 +65,7 @@ export interface FinalizeVideoRequest {
 	voiceovers: string[];
 	music: string;
 	videoType: 'shorts' | 'long';
-	status: 'completed';
+	status: 'preview' | 'completed';
 }
 
 export type VideoApiRequest =
@@ -127,6 +127,17 @@ export function isGenerateVoiceoverRequest(body: VideoApiRequest): body is Gener
 	return 'generateVoiceover' in body && body.generateVoiceover === true;
 }
 
-export function isFinalizeVideoRequest(body: VideoApiRequest): body is FinalizeVideoRequest {
-	return 'selectedIdea' in body && 'status' in body && body.status === 'completed';
+export function isFinalizeVideoRequest(data: any): data is FinalizeVideoRequest {
+	return (
+		data &&
+		'selectedIdea' in data &&
+		'script' in data &&
+		'cleanScript' in data &&
+		'images' in data &&
+		'voiceovers' in data &&
+		'music' in data &&
+		'videoType' in data &&
+		'status' in data &&
+		(data.status === 'preview' || data.status === 'completed')
+	);
 }

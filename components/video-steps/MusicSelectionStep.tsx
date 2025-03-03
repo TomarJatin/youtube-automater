@@ -27,112 +27,6 @@ interface MusicTrack {
   tags: string[];
 }
 
-const SAMPLE_TRACKS: MusicTrack[] = [
-  {
-    id: '1',
-    name: 'Upbeat Corporate',
-    description: 'Positive and energetic background music perfect for business and tech videos',
-    url: 'https://example.com/music/upbeat-corporate.mp3',
-    mood: 'Energetic',
-    genre: 'Corporate',
-    duration: '2:30',
-    tags: ['business', 'technology', 'upbeat', 'modern']
-  },
-  {
-    id: '2',
-    name: 'Inspirational Ambient',
-    description: 'Soft and inspiring background track ideal for storytelling',
-    url: 'https://example.com/music/inspirational-ambient.mp3',
-    mood: 'Inspiring',
-    genre: 'Ambient',
-    duration: '3:15',
-    tags: ['inspiration', 'calm', 'storytelling']
-  },
-  {
-    id: '3',
-    name: 'Tech Innovation',
-    description: 'Modern and dynamic music suitable for technology and innovation topics',
-    url: 'https://example.com/music/tech-innovation.mp3',
-    mood: 'Modern',
-    genre: 'Electronic',
-    duration: '2:45',
-    tags: ['technology', 'innovation', 'dynamic']
-  },
-  {
-    id: '4',
-    name: 'Gentle Documentary',
-    description: 'Subtle and professional background music for informative content',
-    url: 'https://example.com/music/gentle-documentary.mp3',
-    mood: 'Professional',
-    genre: 'Documentary',
-    duration: '3:00',
-    tags: ['documentary', 'informative', 'subtle']
-  },
-  {
-    id: '5',
-    name: 'Epic Cinematic',
-    description: 'Powerful and dramatic music for impactful storytelling',
-    url: 'https://example.com/music/epic-cinematic.mp3',
-    mood: 'Dramatic',
-    genre: 'Cinematic',
-    duration: '3:45',
-    tags: ['epic', 'dramatic', 'cinematic']
-  },
-  {
-    id: '6',
-    name: 'Soft Technology',
-    description: 'Gentle electronic beats for tech product demonstrations',
-    url: 'https://example.com/music/soft-technology.mp3',
-    mood: 'Calm',
-    genre: 'Electronic',
-    duration: '2:15',
-    tags: ['technology', 'soft', 'product']
-  },
-  {
-    id: '7',
-    name: 'Business Growth',
-    description: 'Professional and motivating track for business success stories',
-    url: 'https://example.com/music/business-growth.mp3',
-    mood: 'Professional',
-    genre: 'Corporate',
-    duration: '2:50',
-    tags: ['business', 'success', 'motivation']
-  },
-  {
-    id: '8',
-    name: 'Digital Future',
-    description: 'Futuristic electronic music for cutting-edge tech content',
-    url: 'https://example.com/music/digital-future.mp3',
-    mood: 'Modern',
-    genre: 'Electronic',
-    duration: '3:20',
-    tags: ['future', 'technology', 'digital']
-  },
-  {
-    id: '9',
-    name: 'Calm Innovation',
-    description: 'Peaceful yet modern background music for innovation stories',
-    url: 'https://example.com/music/calm-innovation.mp3',
-    mood: 'Calm',
-    genre: 'Ambient',
-    duration: '3:10',
-    tags: ['innovation', 'calm', 'modern']
-  },
-  {
-    id: '10',
-    name: 'Corporate Success',
-    description: 'Uplifting corporate track for business achievements',
-    url: 'https://example.com/music/corporate-success.mp3',
-    mood: 'Uplifting',
-    genre: 'Corporate',
-    duration: '2:40',
-    tags: ['corporate', 'success', 'achievement']
-  }
-];
-
-const MOODS = Array.from(new Set(SAMPLE_TRACKS.map(track => track.mood)));
-const GENRES = Array.from(new Set(SAMPLE_TRACKS.map(track => track.genre)));
-
 interface AudioPlayerProps {
   url: string;
   isPlaying: boolean;
@@ -169,6 +63,7 @@ function AudioPlayer({ url, isPlaying, onToggle }: AudioPlayerProps) {
 
 export function MusicSelectionStep({ videoData, onBack, onNext }: MusicSelectionStepProps) {
   const [loading, setLoading] = useState(false);
+  const [tracks, setTracks] = useState<MusicTrack[]>([]);
   const [selectedTrack, setSelectedTrack] = useState<string | null>(null);
   const [playingTrack, setPlayingTrack] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -177,6 +72,33 @@ export function MusicSelectionStep({ videoData, onBack, onNext }: MusicSelection
   const [selectedGenre, setSelectedGenre] = useState<string>('all_genres');
   const [suggestedMoods, setSuggestedMoods] = useState<string[]>([]);
   const [suggestedGenres, setSuggestedGenres] = useState<string[]>([]);
+  const [moods, setMoods] = useState<string[]>([]);
+  const [genres, setGenres] = useState<string[]>([]);
+
+  useEffect(() => {
+    const fetchTracks = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/music-tracks');
+        if (!response.ok) throw new Error('Failed to fetch music tracks');
+        const data = await response.json();
+        setTracks(data);
+        
+        // Extract unique moods and genres
+        const uniqueMoods: any = Array.from(new Set(data.map((track: MusicTrack) => track.mood)));
+        const uniqueGenres: any = Array.from(new Set(data.map((track: MusicTrack) => track.genre)));
+        setMoods(uniqueMoods);
+        setGenres(uniqueGenres);
+      } catch (err) {
+        console.error('Error fetching music tracks:', err);
+        setError('Failed to load music tracks');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTracks();
+  }, []);
 
   useEffect(() => {
     const fetchMusicSuggestions = async () => {
@@ -218,14 +140,14 @@ export function MusicSelectionStep({ videoData, onBack, onNext }: MusicSelection
 
   const handleNext = () => {
     if (selectedTrack) {
-      const track = SAMPLE_TRACKS.find((t) => t.id === selectedTrack);
+      const track = tracks.find((t) => t.id === selectedTrack);
       if (track) {
         onNext({ music: track.url });
       }
     }
   };
 
-  const filteredTracks = SAMPLE_TRACKS.filter((track) => {
+  const filteredTracks = tracks.filter((track) => {
     const matchesSearch = 
       searchQuery === '' ||
       track.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -300,7 +222,7 @@ export function MusicSelectionStep({ videoData, onBack, onNext }: MusicSelection
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all_moods">All Moods</SelectItem>
-              {MOODS.map((mood) => (
+              {moods.map((mood) => (
                 <SelectItem key={mood} value={mood}>
                   {mood}
                 </SelectItem>
@@ -313,7 +235,7 @@ export function MusicSelectionStep({ videoData, onBack, onNext }: MusicSelection
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all_genres">All Genres</SelectItem>
-              {GENRES.map((genre) => (
+              {genres.map((genre) => (
                 <SelectItem key={genre} value={genre}>
                   {genre}
                 </SelectItem>
@@ -323,65 +245,71 @@ export function MusicSelectionStep({ videoData, onBack, onNext }: MusicSelection
         </div>
       </div>
 
-      <RadioGroup value={selectedTrack || ''} onValueChange={setSelectedTrack} className="space-y-4">
-        {filteredTracks.map((track) => (
-          <Card
-            key={track.id}
-            className={`cursor-pointer p-4 transition-colors ${
-              selectedTrack === track.id ? 'border-primary' : ''
-            }`}
-          >
-            <div className="flex items-start space-x-4">
-              <RadioGroupItem value={track.id} id={track.id} />
-              <div className="flex-grow space-y-1">
-                <Label htmlFor={track.id} className="font-medium">
-                  {track.name}
-                </Label>
-                <p className="text-sm text-muted-foreground">{track.description}</p>
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-primary">
-                  <span>Mood: {track.mood}</span>
-                  <span>•</span>
-                  <span>Genre: {track.genre}</span>
-                  <span>•</span>
-                  <span>Duration: {track.duration}</span>
+      {filteredTracks.length === 0 ? (
+        <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
+          <p>No music tracks found matching your criteria.</p>
+        </div>
+      ) : (
+        <RadioGroup value={selectedTrack || ''} onValueChange={setSelectedTrack} className="space-y-4">
+          {filteredTracks.map((track) => (
+            <Card
+              key={track.id}
+              className={`cursor-pointer p-4 transition-colors ${
+                selectedTrack === track.id ? 'border-primary' : ''
+              }`}
+            >
+              <div className="flex items-start space-x-4">
+                <RadioGroupItem value={track.id} id={track.id} />
+                <div className="flex-grow space-y-1">
+                  <Label htmlFor={track.id} className="font-medium">
+                    {track.name}
+                  </Label>
+                  <p className="text-sm text-muted-foreground">{track.description}</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-primary">
+                    <span>Mood: {track.mood}</span>
+                    <span>•</span>
+                    <span>Genre: {track.genre}</span>
+                    <span>•</span>
+                    <span>Duration: {track.duration}</span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {track.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {track.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={(e) => {
-                  e.preventDefault();
-                  handlePlayToggle(track.id);
-                }}
-                className="text-primary"
-              >
-                {playingTrack === track.id ? (
-                  <PauseCircle className="h-6 w-6" />
-                ) : (
-                  <PlayCircle className="h-6 w-6" />
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handlePlayToggle(track.id);
+                  }}
+                  className="text-primary"
+                >
+                  {playingTrack === track.id ? (
+                    <PauseCircle className="h-6 w-6" />
+                  ) : (
+                    <PlayCircle className="h-6 w-6" />
+                  )}
+                </Button>
+                {playingTrack === track.id && (
+                  <AudioPlayer
+                    url={track.url}
+                    isPlaying={true}
+                    onToggle={() => setPlayingTrack(null)}
+                  />
                 )}
-              </Button>
-              {playingTrack === track.id && (
-                <AudioPlayer
-                  url={track.url}
-                  isPlaying={true}
-                  onToggle={() => setPlayingTrack(null)}
-                />
-              )}
-            </div>
-          </Card>
-        ))}
-      </RadioGroup>
+              </div>
+            </Card>
+          ))}
+        </RadioGroup>
+      )}
 
       <div className="flex justify-between pt-4">
         <Button variant="outline" onClick={onBack}>

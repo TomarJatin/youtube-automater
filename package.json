@@ -81,6 +81,7 @@
 		"sonner": "^1.7.0",
 		"tailwind-merge": "^2.5.5",
 		"tailwindcss-animate": "^1.0.7",
+		"uuid": "^11.1.0",
 		"vaul": "^1.1.1",
 		"winston": "^3.17.0",
 		"zod": "^3.23.8",
