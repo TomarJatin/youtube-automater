@@ -39,6 +39,12 @@ export interface CreateVideoRequest {
 	videoType: 'shorts' | 'long';
 }
 
+export interface GeneratePromptsRequest {
+	generatePrompts: true;
+	script: string;
+	singlePrompt?: boolean;
+}
+
 export interface GenerateImageRequest {
 	generateImage: true;
 	script: string;
@@ -74,7 +80,8 @@ export type VideoApiRequest =
 	| GenerateImageRequest
 	| GenerateVoiceoverRequest
 	| UpdateVideoRequest
-	| FinalizeVideoRequest;
+	| FinalizeVideoRequest
+	| GeneratePromptsRequest;
 
 // Step Data Types
 export interface VideoStepData {
@@ -111,6 +118,10 @@ export interface MusicStepData extends VoiceoverStepData {
 export interface FinalizeStepData extends Required<VideoStepData> {}
 
 // Type Guards
+export function isGeneratePromptsRequest(body: VideoApiRequest): body is GeneratePromptsRequest {
+	return 'generatePrompts' in body && body.generatePrompts === true;
+}
+
 export function isGenerateIdeasRequest(body: VideoApiRequest): body is GenerateVideoIdeasRequest {
 	return 'generateIdeas' in body && body.generateIdeas === true;
 }

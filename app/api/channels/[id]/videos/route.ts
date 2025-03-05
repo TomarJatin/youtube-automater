@@ -18,6 +18,7 @@ import {
 	isGenerateImageRequest,
 	isGenerateVoiceoverRequest,
 	isFinalizeVideoRequest,
+	isGeneratePromptsRequest,
 } from '@/types/video';
 
 const openai = new OpenAI({
@@ -120,6 +121,27 @@ async function generateScript(title: string, idea: string, videoType: 'shorts' |
 	});
 
 	return completion.choices[0].message.content || '';
+}
+
+async function generateImagePrompts(script: string, singlePrompt: boolean = false): Promise<string[]> {
+	const completion = await openai.chat.completions.create({
+		messages: [
+			{
+				role: 'system',
+				content: 'You are an expert at creating detailed image prompts for AI image generation. Create prompts that will result in high-quality, visually appealing images that match the script sections.'
+			},
+			{
+				role: 'user',
+				content: singlePrompt 
+					? `Generate 1 detailed image prompt based on this script: "${script}". The prompt should be descriptive and specific, focusing on visual elements that would make a compelling video content. Format the response as a JSON array with a single string. Make sure the prompt is detailed enough to generate a high-quality image.`
+					: `Generate 4 detailed image prompts based on this script: "${script}". Each prompt should be descriptive and specific, focusing on visual elements that would make compelling video content. Format the response as a JSON array of strings, with each string being a complete image prompt. Make sure each prompt is detailed enough to generate a high-quality image.`
+			},
+		],
+		model: 'gpt-4',
+	});
+
+	const prompts = JSON.parse(completion.choices[0].message.content || '[]');
+	return prompts;
 }
 
 async function generateImage(prompt: string): Promise<string> {
@@ -339,6 +361,13 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
 				return NextResponse.json(video);
 			}
+		}
+
+		// Generate image prompts
+		if (isGeneratePromptsRequest(body)) {
+			console.log('generating image prompts for script:', body.script);
+			const prompts = await generateImagePrompts(body.script, body.singlePrompt);
+			return NextResponse.json({ prompts });
 		}
 
 		// Generate single image
