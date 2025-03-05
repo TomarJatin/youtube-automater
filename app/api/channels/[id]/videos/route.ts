@@ -423,87 +423,107 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 				// Generate video segments
 				const segmentFiles = await Promise.all(
 					imageFiles.map(async (imagePath, i) => {
+						// Skip if no corresponding voiceover
+						if (!voiceoverFiles[i]) {
+							console.error(`No voiceover file found for segment ${i}`);
+							return null;
+						}
+
 						const voiceoverPath = voiceoverFiles[i];
 						const outputPath = path.join(tempDir, `segment-${i}.mp4`);
 						
-						// Create subtitle file for this segment
-						const subtitleText = body.cleanScript.split('\n\n')[i] || '';
-						const subtitlePath = path.join(tempDir, `subtitle-${i}.srt`);
-						await createSubtitleFile(subtitleText, voiceoverPath, subtitlePath);
+						try {
+							// Create subtitle file for this segment
+							const subtitleText = body.cleanScript.split('\n\n')[i] || '';
+							const subtitlePath = path.join(tempDir, `subtitle-${i}.srt`);
+							await createSubtitleFile(subtitleText, voiceoverPath, subtitlePath);
 
-						// Get audio duration
-						const { stdout: durationStr } = await execAsync(
-							`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${voiceoverPath}"`
-						);
-						const duration = parseFloat(durationStr);
-						const frames = Math.floor(duration * 30); // 30fps
+							// Get audio duration
+							const { stdout: durationStr } = await execAsync(
+								`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${voiceoverPath}"`
+							);
+							const duration = parseFloat(durationStr);
+							const frames = Math.floor(duration * 30); // 30fps
 
-						// Create more effective animations while maintaining vertical orientation
-						const animations = [
-							// Slow zoom in
-							`scale=1080:1920,zoompan=z='min(1.0+(0.0015*n),1.5)':x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':d=${frames}:fps=30`,
+							// Create more effective animations while maintaining vertical orientation
+							const animations = [
+								// Slow zoom in
+								`scale=1080:1920,zoompan=z='min(1.0+(0.0015*n),1.5)':x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':d=${frames}:fps=30`,
+								
+								// Slow zoom out
+								`scale=1080:1920,zoompan=z='max(1.5-(0.0015*n),1.0)':x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':d=${frames}:fps=30`,
+								
+								// Pan left to right with fixed zoom
+								`scale=1080:1920,zoompan=z=1.2:x='if(lt(on,1),0,min(on/${frames}*200,200))':y='(ih-ih/zoom)/2':d=${frames}:fps=30`,
+								
+								// Pan right to left with fixed zoom
+								`scale=1080:1920,zoompan=z=1.2:x='if(lt(on,1),200,max(200-on/${frames}*200,0))':y='(ih-ih/zoom)/2':d=${frames}:fps=30`,
+								
+								// Pan top to bottom with fixed zoom
+								`scale=1080:1920,zoompan=z=1.2:x='(iw-iw/zoom)/2':y='if(lt(on,1),0,min(on/${frames}*200,200))':d=${frames}:fps=30`,
+								
+								// Pan bottom to top with fixed zoom
+								`scale=1080:1920,zoompan=z=1.2:x='(iw-iw/zoom)/2':y='if(lt(on,1),200,max(200-on/${frames}*200,0))':d=${frames}:fps=30`,
+							];
 							
-							// Slow zoom out
-							`scale=1080:1920,zoompan=z='max(1.5-(0.0015*n),1.0)':x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':d=${frames}:fps=30`,
+							// Select a random animation
+							const randomAnimation = animations[Math.floor(Math.random() * animations.length)];
 							
-							// Pan left to right with fixed zoom
-							`scale=1080:1920,zoompan=z=1.2:x='if(lt(on,1),0,min(on/${frames}*200,200))':y='(ih-ih/zoom)/2':d=${frames}:fps=30`,
-							
-							// Pan right to left with fixed zoom
-							`scale=1080:1920,zoompan=z=1.2:x='if(lt(on,1),200,max(200-on/${frames}*200,0))':y='(ih-ih/zoom)/2':d=${frames}:fps=30`,
-							
-							// Pan top to bottom with fixed zoom
-							`scale=1080:1920,zoompan=z=1.2:x='(iw-iw/zoom)/2':y='if(lt(on,1),0,min(on/${frames}*200,200))':d=${frames}:fps=30`,
-							
-							// Pan bottom to top with fixed zoom
-							`scale=1080:1920,zoompan=z=1.2:x='(iw-iw/zoom)/2':y='if(lt(on,1),200,max(200-on/${frames}*200,0))':d=${frames}:fps=30`,
-						];
-						
-						// Select a random animation
-						const randomAnimation = animations[Math.floor(Math.random() * animations.length)];
-						
-						// Create segment with image, voiceover, and subtitles with animation
-						// Ensure vertical orientation with 1080x1920 dimensions
-						await execAsync(
-							`ffmpeg -loop 1 -i "${imagePath}" -i "${voiceoverPath}" -c:v libx264 -c:a aac -strict experimental ` +
-							`-t ${duration} -vf "${randomAnimation},subtitles=${subtitlePath}:force_style='FontName=Montserrat,FontSize=28,Alignment=10,PrimaryColour=&Hffffff,OutlineColour=&H000000,BorderStyle=1,Outline=1.5,Shadow=1,MarginV=20'" ` +
-							`-pix_fmt yuv420p -shortest "${outputPath}"`
-						);
+							// Create segment with image, voiceover, and subtitles with animation
+							// Ensure vertical orientation with 1080x1920 dimensions
+							await execAsync(
+								`ffmpeg -loop 1 -i "${imagePath}" -i "${voiceoverPath}" -c:v libx264 -c:a aac -strict experimental ` +
+								`-t ${duration} -vf "${randomAnimation},subtitles=${subtitlePath}:force_style='FontName=Montserrat,FontSize=28,Alignment=10,PrimaryColour=&Hffffff,OutlineColour=&H000000,BorderStyle=1,Outline=1.5,Shadow=1,MarginV=20'" ` +
+								`-pix_fmt yuv420p -shortest "${outputPath}"`
+							);
 
-						return outputPath;
+							return outputPath;
+						} catch (error) {
+							console.error(`Error generating segment ${i}:`, error);
+							return null;
+						}
 					})
 				);
 
-				// Create transition videos between segments
+				// Filter out any null segments and create transition videos between valid segments
+				const validSegmentFiles = segmentFiles.filter((file): file is string => file !== null);
 				const transitionFiles = [];
-				for (let i = 0; i < segmentFiles.length - 1; i++) {
+				
+				for (let i = 0; i < validSegmentFiles.length - 1; i++) {
 					const transitionPath = path.join(tempDir, `transition-${i}.mp4`);
 					
-					// Get first frame of next segment
-					const nextSegmentFirstFrame = path.join(tempDir, `next-segment-${i}-first-frame.png`);
-					await execAsync(`ffmpeg -i "${segmentFiles[i+1]}" -vframes 1 "${nextSegmentFirstFrame}"`);
-					
-					// Get last frame of current segment
-					const currentSegmentLastFrame = path.join(tempDir, `current-segment-${i}-last-frame.png`);
-					await execAsync(`ffmpeg -sseof -0.1 -i "${segmentFiles[i]}" -update 1 -q:v 1 "${currentSegmentLastFrame}"`);
-					
-					// Create 0.5 second crossfade transition
-					await execAsync(
-						`ffmpeg -loop 1 -t 0.5 -i "${currentSegmentLastFrame}" -loop 1 -t 0.5 -i "${nextSegmentFirstFrame}" ` +
-						`-filter_complex "xfade=transition=fade:duration=0.5:offset=0,scale=1080:1920" ` +
-						`-c:v libx264 -pix_fmt yuv420p "${transitionPath}"`
-					);
-					
-					transitionFiles.push(transitionPath);
+					try {
+						// Get first frame of next segment
+						const nextSegmentFirstFrame = path.join(tempDir, `next-segment-${i}-first-frame.png`);
+						await execAsync(`ffmpeg -i "${validSegmentFiles[i+1]}" -vframes 1 "${nextSegmentFirstFrame}"`);
+						
+						// Get last frame of current segment
+						const currentSegmentLastFrame = path.join(tempDir, `current-segment-${i}-last-frame.png`);
+						await execAsync(`ffmpeg -sseof -0.1 -i "${validSegmentFiles[i]}" -update 1 -q:v 1 "${currentSegmentLastFrame}"`);
+						
+						// Create 0.5 second crossfade transition
+						await execAsync(
+							`ffmpeg -loop 1 -t 0.5 -i "${currentSegmentLastFrame}" -loop 1 -t 0.5 -i "${nextSegmentFirstFrame}" ` +
+							`-filter_complex "xfade=transition=fade:duration=0.5:offset=0,scale=1080:1920" ` +
+							`-c:v libx264 -pix_fmt yuv420p "${transitionPath}"`
+						);
+						
+						transitionFiles.push(transitionPath);
+					} catch (error) {
+						console.error(`Error creating transition ${i}:`, error);
+						continue;
+					}
 				}
 
 				// Create a new list file that includes transitions
 				const listFileWithTransitions = path.join(tempDir, 'segments-with-transitions.txt');
-				let fileContent = `file '${segmentFiles[0]}'\n`;
+				let fileContent = `file '${validSegmentFiles[0]}'\n`;
 
 				for (let i = 0; i < transitionFiles.length; i++) {
-					fileContent += `file '${transitionFiles[i]}'\n`;
-					fileContent += `file '${segmentFiles[i+1]}'\n`;
+					if (transitionFiles[i] && validSegmentFiles[i+1]) {
+						fileContent += `file '${transitionFiles[i]}'\n`;
+						fileContent += `file '${validSegmentFiles[i+1]}'\n`;
+					}
 				}
 
 				await fs.promises.writeFile(listFileWithTransitions, fileContent);
