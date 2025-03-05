@@ -387,29 +387,38 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 		if (isFinalizeVideoRequest(body)) {
 			try {
 				// Create temporary directory
+				console.log("generating videos...", body);
 				const tempDir = path.join(os.tmpdir(), `video-${Date.now()}`);
 				await fs.promises.mkdir(tempDir, { recursive: true });
 
 				// Download all assets
+				console.log('Processing images array:', body.images);
 				const imageFiles = await Promise.all(
 					body.images.map(async (url, i) => {
+						console.log(`Processing image ${i}:`, url);
 						const response = await fetch(url);
 						const buffer = await response.arrayBuffer();
 						const filePath = path.join(tempDir, `image-${i}.png`);
 						await fs.promises.writeFile(filePath, Buffer.from(buffer));
+						console.log(`Saved image ${i} to:`, filePath);
 						return filePath;
 					})
 				);
+				console.log('Downloaded image files:', imageFiles);
 
+				console.log('Processing voiceovers array:', body.voiceovers);
 				const voiceoverFiles = await Promise.all(
 					body.voiceovers.map(async (url, i) => {
+						console.log(`Processing voiceover ${i}:`, url);
 						const response = await fetch(url);
 						const buffer = await response.arrayBuffer();
 						const filePath = path.join(tempDir, `voiceover-${i}.mp3`);
 						await fs.promises.writeFile(filePath, Buffer.from(buffer));
+						console.log(`Saved voiceover ${i} to:`, filePath);
 						return filePath;
 					})
 				);
+				console.log('Downloaded voiceover files:', voiceoverFiles);
 
 				// Download background music if provided
 				let musicPath = '';
@@ -421,72 +430,72 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 				}
 
 				// Generate video segments
-				const segmentFiles = await Promise.all(
-					imageFiles.map(async (imagePath, i) => {
-						// Skip if no corresponding voiceover
-						if (!voiceoverFiles[i]) {
-							console.error(`No voiceover file found for segment ${i}`);
-							return null;
-						}
+				console.log('Starting video segment generation');
+				console.log('Number of images:', imageFiles.length);
 
-						const voiceoverPath = voiceoverFiles[i];
-						const outputPath = path.join(tempDir, `segment-${i}.mp4`);
-						
-						try {
-							// Create subtitle file for this segment
-							const subtitleText = body.cleanScript.split('\n\n')[i] || '';
-							const subtitlePath = path.join(tempDir, `subtitle-${i}.srt`);
-							await createSubtitleFile(subtitleText, voiceoverPath, subtitlePath);
-
-							// Get audio duration
-							const { stdout: durationStr } = await execAsync(
-								`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${voiceoverPath}"`
-							);
-							const duration = parseFloat(durationStr);
-							const frames = Math.floor(duration * 30); // 30fps
-
-							// Create more effective animations while maintaining vertical orientation
-							const animations = [
-								// Slow zoom in
-								`scale=1080:1920,zoompan=z='min(1.0+(0.0015*n),1.5)':x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':d=${frames}:fps=30`,
-								
-								// Slow zoom out
-								`scale=1080:1920,zoompan=z='max(1.5-(0.0015*n),1.0)':x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':d=${frames}:fps=30`,
-								
-								// Pan left to right with fixed zoom
-								`scale=1080:1920,zoompan=z=1.2:x='if(lt(on,1),0,min(on/${frames}*200,200))':y='(ih-ih/zoom)/2':d=${frames}:fps=30`,
-								
-								// Pan right to left with fixed zoom
-								`scale=1080:1920,zoompan=z=1.2:x='if(lt(on,1),200,max(200-on/${frames}*200,0))':y='(ih-ih/zoom)/2':d=${frames}:fps=30`,
-								
-								// Pan top to bottom with fixed zoom
-								`scale=1080:1920,zoompan=z=1.2:x='(iw-iw/zoom)/2':y='if(lt(on,1),0,min(on/${frames}*200,200))':d=${frames}:fps=30`,
-								
-								// Pan bottom to top with fixed zoom
-								`scale=1080:1920,zoompan=z=1.2:x='(iw-iw/zoom)/2':y='if(lt(on,1),200,max(200-on/${frames}*200,0))':d=${frames}:fps=30`,
-							];
-							
-							// Select a random animation
-							const randomAnimation = animations[Math.floor(Math.random() * animations.length)];
-							
-							// Create segment with image, voiceover, and subtitles with animation
-							// Ensure vertical orientation with 1080x1920 dimensions
-							await execAsync(
-								`ffmpeg -loop 1 -i "${imagePath}" -i "${voiceoverPath}" -c:v libx264 -c:a aac -strict experimental ` +
-								`-t ${duration} -vf "${randomAnimation},subtitles=${subtitlePath}:force_style='FontName=Montserrat,FontSize=28,Alignment=10,PrimaryColour=&Hffffff,OutlineColour=&H000000,BorderStyle=1,Outline=1.5,Shadow=1,MarginV=20'" ` +
-								`-pix_fmt yuv420p -shortest "${outputPath}"`
-							);
-
-							return outputPath;
-						} catch (error) {
-							console.error(`Error generating segment ${i}:`, error);
-							return null;
-						}
-					})
+				// Get total duration from voiceover
+				const { stdout: voiceoverDurationStr } = await execAsync(
+					`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${voiceoverFiles[0]}"`
 				);
+				const voiceoverDuration = parseFloat(voiceoverDurationStr);
+				const durationPerImage = voiceoverDuration / imageFiles.length;
+				console.log(`Duration per image: ${durationPerImage} seconds`);
+
+				// Process segments sequentially to ensure proper ordering
+				const segmentFiles = [];
+				for (let i = 0; i < imageFiles.length; i++) {
+					console.log(`\nProcessing segment ${i + 1} of ${imageFiles.length}`);
+					const outputPath = path.join(tempDir, `segment-${i}.mp4`);
+					const imagePath = imageFiles[i];
+						
+					try {
+						console.log(`Processing image: ${imagePath}`);
+
+						const frames = Math.floor(durationPerImage * 30); // 30fps
+
+						// Create more effective animations while maintaining vertical orientation
+						const animations = [
+							// Simple zoom in
+							`scale=1080:1920,zoompan=z='if(lte(zoom,1.5),zoom+0.002,zoom)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:fps=30`,
+							
+							// Simple zoom out
+							`scale=1080:1920,zoompan=z='if(gte(zoom,1.0),zoom-0.002,zoom)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:fps=30`,
+							
+							// Simple pan up
+							`scale=1080:1920,zoompan=z=1.2:x='iw/2-(iw/zoom/2)':y='if(lte(n,${frames}),n/8,n/8)':d=${frames}:fps=30`,
+							
+							// Simple pan down
+							`scale=1080:1920,zoompan=z=1.2:x='iw/2-(iw/zoom/2)':y='if(lte(n,${frames}),${frames}/8-n/8,0)':d=${frames}:fps=30`,
+							
+							// Simple pan left to right
+							`scale=1080:1920,zoompan=z=1.2:x='if(lte(n,${frames}),n/8,n/8)':y='ih/2-(ih/zoom/2)':d=${frames}:fps=30`,
+							
+							// Simple pan right to left
+							`scale=1080:1920,zoompan=z=1.2:x='if(lte(n,${frames}),${frames}/8-n/8,0)':y='ih/2-(ih/zoom/2)':d=${frames}:fps=30`
+						];
+						
+						// Select a random animation
+						const randomAnimation = animations[1];
+						console.log("Random animation:", randomAnimation);
+						
+						// Create segment with image and animation only
+						await execAsync(
+							`ffmpeg -loop 1 -i "${imagePath}" -c:v libx264 ` +
+							`-t ${durationPerImage} -vf "${randomAnimation}" ` +
+							`-pix_fmt yuv420p "${outputPath}"`
+						);
+
+						segmentFiles.push(outputPath);
+						console.log(`Successfully generated segment ${i + 1}`);
+					} catch (error) {
+						console.error(`Error generating segment ${i + 1}:`, error);
+						throw error; // Stop processing if any segment fails
+					}
+				}
 
 				// Filter out any null segments and create transition videos between valid segments
 				const validSegmentFiles = segmentFiles.filter((file): file is string => file !== null);
+				console.log('Valid segment files:', validSegmentFiles);
 				const transitionFiles = [];
 				
 				for (let i = 0; i < validSegmentFiles.length - 1; i++) {
@@ -516,43 +525,40 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 				}
 
 				// Create a new list file that includes transitions
-				const listFileWithTransitions = path.join(tempDir, 'segments-with-transitions.txt');
+				const listFile = path.join(tempDir, 'segments.txt');
 				let fileContent = `file '${validSegmentFiles[0]}'\n`;
-
 				for (let i = 0; i < transitionFiles.length; i++) {
 					if (transitionFiles[i] && validSegmentFiles[i+1]) {
 						fileContent += `file '${transitionFiles[i]}'\n`;
 						fileContent += `file '${validSegmentFiles[i+1]}'\n`;
 					}
 				}
+				await fs.promises.writeFile(listFile, fileContent);
 
-				await fs.promises.writeFile(listFileWithTransitions, fileContent);
-
-				// Concatenate all segments with transitions
+				// Concatenate video segments
 				const concatenatedVideoPath = path.join(tempDir, 'concatenated.mp4');
-				await execAsync(`ffmpeg -f concat -safe 0 -i "${listFileWithTransitions}" -c copy "${concatenatedVideoPath}"`);
+				await execAsync(`ffmpeg -f concat -safe 0 -i "${listFile}" -c copy "${concatenatedVideoPath}"`);
+
+				// Add voiceover to the video
+				const withVoiceoverPath = path.join(tempDir, 'with-voiceover.mp4');
+				await execAsync(
+					`ffmpeg -i "${concatenatedVideoPath}" -i "${voiceoverFiles[0]}" ` +
+					`-c:v copy -c:a aac -strict experimental "${withVoiceoverPath}"`
+				);
 
 				// Final video path
 				const finalVideoPath = path.join(tempDir, 'final.mp4');
 
-				// If music is provided, add it to the video with proper volume adjustment
+				// Add background music if provided
 				if (musicPath) {
-					// Get video duration
-					const { stdout: videoDurationStr } = await execAsync(
-						`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${concatenatedVideoPath}"`
-					);
-					const videoDuration = parseFloat(videoDurationStr);
-
-					// Add background music with volume lowered and looped if necessary
 					await execAsync(
-						`ffmpeg -i "${concatenatedVideoPath}" -i "${musicPath}" -filter_complex ` +
-						`"[1:a]volume=0.2,aloop=loop=-1:size=0,atrim=0:${videoDuration}[a1];` +
+						`ffmpeg -i "${withVoiceoverPath}" -i "${musicPath}" -filter_complex ` +
+						`"[1:a]volume=0.2,aloop=loop=-1:size=0,atrim=0:${voiceoverDuration}[a1];` +
 						`[0:a][a1]amix=inputs=2:duration=first:dropout_transition=2[aout]" ` +
 						`-map 0:v -map "[aout]" -c:v copy -c:a aac -strict experimental "${finalVideoPath}"`
 					);
 				} else {
-					// If no music, just copy the concatenated video
-					await fs.promises.copyFile(concatenatedVideoPath, finalVideoPath);
+					await fs.promises.copyFile(withVoiceoverPath, finalVideoPath);
 				}
 
 				// Upload to S3
