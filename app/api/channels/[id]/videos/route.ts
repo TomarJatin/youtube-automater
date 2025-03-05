@@ -410,25 +410,24 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 						const frames = Math.floor(duration * 30); // 30fps
 
 						// Create more effective animations while maintaining vertical orientation
-						// Use separate filter for each animation type to ensure they work properly
 						const animations = [
 							// Slow zoom in
-							`scale=1080:1920,zoompan=z='min(1.0+0.0015*n,1.5)':x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':d=${frames}:fps=30`,
+							`scale=1080:1920,zoompan=z='min(1.0+(0.0015*n),1.5)':x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':d=${frames}:fps=30`,
 							
 							// Slow zoom out
-							`scale=1080:1920,zoompan=z='max(1.5-0.0015*n,1.0)':x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':d=${frames}:fps=30`,
+							`scale=1080:1920,zoompan=z='max(1.5-(0.0015*n),1.0)':x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':d=${frames}:fps=30`,
 							
 							// Pan left to right with fixed zoom
-							`scale=1080:1920,zoompan=z=1.2:x='if(lt(on,1),0,min(on/(${frames})*200,200))':y='(ih-ih/zoom)/2':d=${frames}:fps=30`,
+							`scale=1080:1920,zoompan=z=1.2:x='if(lt(on,1),0,min(on/${frames}*200,200))':y='(ih-ih/zoom)/2':d=${frames}:fps=30`,
 							
 							// Pan right to left with fixed zoom
-							`scale=1080:1920,zoompan=z=1.2:x='if(lt(on,1),200,max(200-on/(${frames})*200,0))':y='(ih-ih/zoom)/2':d=${frames}:fps=30`,
+							`scale=1080:1920,zoompan=z=1.2:x='if(lt(on,1),200,max(200-on/${frames}*200,0))':y='(ih-ih/zoom)/2':d=${frames}:fps=30`,
 							
 							// Pan top to bottom with fixed zoom
-							`scale=1080:1920,zoompan=z=1.2:x='(iw-iw/zoom)/2':y='if(lt(on,1),0,min(on/(${frames})*200,200))':d=${frames}:fps=30`,
+							`scale=1080:1920,zoompan=z=1.2:x='(iw-iw/zoom)/2':y='if(lt(on,1),0,min(on/${frames}*200,200))':d=${frames}:fps=30`,
 							
 							// Pan bottom to top with fixed zoom
-							`scale=1080:1920,zoompan=z=1.2:x='(iw-iw/zoom)/2':y='if(lt(on,1),200,max(200-on/(${frames})*200,0))':d=${frames}:fps=30`,
+							`scale=1080:1920,zoompan=z=1.2:x='(iw-iw/zoom)/2':y='if(lt(on,1),200,max(200-on/${frames}*200,0))':d=${frames}:fps=30`,
 						];
 						
 						// Select a random animation
