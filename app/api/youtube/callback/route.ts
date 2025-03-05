@@ -25,11 +25,17 @@ export async function GET(request: NextRequest) {
 
 		// Exchange code for tokens
 		const { tokens } = await oauth2Client.getToken(code);
+		console.log("tokens", tokens);
 		oauth2Client.setCredentials(tokens);
 
 		// Get user info
 		const oauth2 = google.oauth2({ auth: oauth2Client, version: 'v2' });
 		const { data } = await oauth2.userinfo.get();
+
+		// Check if channel is already connected to get existing refresh token
+		const existingConnection = await prisma.connectedChannel.findUnique({
+			where: { channelId }
+		});
 
 		// Update or create ConnectedChannel
 		await prisma.connectedChannel.upsert({
@@ -38,14 +44,18 @@ export async function GET(request: NextRequest) {
 				channelId,
 				avatarUrl: data.picture || '',
 				accessToken: tokens.access_token!,
-				refreshToken: tokens.refresh_token!,
+				// Use new refresh token or throw error if not available on first connection
+				refreshToken: tokens.refresh_token || (() => {
+					throw new Error('Refresh token is required for initial connection');
+				})(),
 				expiresAt: new Date(tokens.expiry_date!),
 				status: 'connected',
 			},
 			update: {
 				avatarUrl: data.picture || '',
 				accessToken: tokens.access_token!,
-				refreshToken: tokens.refresh_token!,
+				// Keep existing refresh token if no new one is provided
+				...(tokens.refresh_token && { refreshToken: tokens.refresh_token }),
 				expiresAt: new Date(tokens.expiry_date!),
 				status: 'connected',
 			},

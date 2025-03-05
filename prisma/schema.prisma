@@ -48,19 +48,24 @@ model CompetitorChannel {
 }
 
 model Video {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  channelId   String   @db.ObjectId
-  channel     Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  title       String
-  idea        String
-  script      String?
-  images      String[] // S3 URLs
-  voiceovers  String[] // S3 URLs
-  music       String?  // Selected music URL or reference
-  videoUrl    String?  // Final generated video URL
-  status      String   // "in_progress" | "completed"
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  channelId       String   @db.ObjectId
+  channel         Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  title           String
+  idea            String
+  script          String?
+  images          String[] // S3 URLs
+  voiceovers      String[] // S3 URLs
+  music           String?  // Selected music URL or reference
+  videoUrl        String?  // Final generated video URL
+  status          String   // "in_progress" | "completed" | "uploaded"
+  uploadStatus    String?  // "pending" | "uploading" | "completed" | "failed"
+  uploadedUrl     String?  // YouTube video URL after upload
+  thumbnail       String?  // Generated thumbnail URL
+  description     String?  // Generated video description
+  tags            String[] // Generated video tags
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model MusicTrack {

@@ -26,7 +26,15 @@ export interface Video {
 	updatedAt: string;
 }
 
-export type VideoStatus = 'in_progress' | 'completed';
+export type VideoStatus = 'in_progress' | 'completed' | 'uploaded';
+export type UploadStatus = 'pending' | 'uploading' | 'completed' | 'failed';
+
+export interface VideoUploadMetadata {
+  title: string;
+  description: string;
+  tags: string[];
+  thumbnail: string;
+}
 
 // API Request Types
 export interface GenerateVideoIdeasRequest {

@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
 			access_type: 'offline',
 			scope: scopes,
 			state: JSON.stringify({ channelId }), // Pass channelId in state
+			prompt: 'consent', // Force consent screen to ensure refresh token
 		});
 
 		return NextResponse.json({ url });
