@@ -547,8 +547,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 				const withVoiceoverPath = path.join(tempDir, 'with-voiceover.mp4');
 				// Adjust subtitle styling based on video type
 				const subtitleStyle = body.videoType === 'shorts' 
-					? 'Fontsize=28,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,BorderStyle=3,Outline=1,Shadow=0,MarginV=40'  // Larger text for shorts
-					: 'Fontsize=24,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,BorderStyle=3,Outline=1,Shadow=0,MarginV=30'; // Standard size for long videos
+					? 'Fontsize=32,FontName=Arial Bold,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,BorderStyle=1,Outline=2,Shadow=1,MarginV=40'  // Larger text for shorts
+					: 'Fontsize=28,FontName=Arial Bold,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,BorderStyle=1,Outline=2,Shadow=1,MarginV=30'; // Standard size for long videos
 
 				// Escape the subtitle path for ffmpeg
 				const escapedSubtitlePath = subtitlePath.replace(/'/g, "'\\''");
