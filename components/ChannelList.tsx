@@ -88,6 +88,32 @@ export default function ChannelList({ initialChannels }: ChannelListProps) {
 		}
 	};
 
+	const handleDisconnectChannel = async (channelId: string) => {
+		setLoading(channelId);
+		try {
+			const response = await fetch('/api/youtube/disconnect', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({ channelId }),
+			});
+
+			if (!response.ok) {
+				const error = await response.json();
+				throw new Error(error.message || 'Failed to disconnect YouTube channel');
+			}
+
+			toast.success('Successfully disconnected from YouTube');
+			refreshChannels();
+		} catch (error) {
+			console.error('Error disconnecting from YouTube:', error);
+			toast.error('Failed to disconnect from YouTube');
+		} finally {
+			setLoading(null);
+		}
+	};
+
 	const handleManageVideos = (channelId: string) => {
 		router.push(`/channels/${channelId}/videos`);
 	};
@@ -157,6 +183,13 @@ export default function ChannelList({ initialChannels }: ChannelListProps) {
 								</Button>
 								<Button onClick={() => handleManageCompetitors(channel.id)} variant='outline'>
 									Manage Competitors
+								</Button>
+								<Button 
+									onClick={() => handleDisconnectChannel(channel.id)}
+									variant='destructive'
+									disabled={loading === channel.id}
+								>
+									{loading === channel.id ? 'Disconnecting...' : 'Disconnect'}
 								</Button>
 							</>
 						)}
