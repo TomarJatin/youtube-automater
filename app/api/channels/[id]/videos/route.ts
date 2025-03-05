@@ -539,11 +539,23 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 				const concatenatedVideoPath = path.join(tempDir, 'concatenated.mp4');
 				await execAsync(`ffmpeg -f concat -safe 0 -i "${listFile}" -c copy "${concatenatedVideoPath}"`);
 
-				// Add voiceover to the video
+				// Create subtitle file
+				const subtitlePath = path.join(tempDir, 'subtitles.srt');
+				await createSubtitleFile(body.cleanScript, voiceoverFiles[0], subtitlePath);
+
+				// Add voiceover and subtitles to the video
 				const withVoiceoverPath = path.join(tempDir, 'with-voiceover.mp4');
+				// Adjust subtitle styling based on video type
+				const subtitleStyle = body.videoType === 'shorts' 
+					? 'Fontsize=28,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,BorderStyle=3,Outline=1,Shadow=0,MarginV=40'  // Larger text for shorts
+					: 'Fontsize=24,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,BorderStyle=3,Outline=1,Shadow=0,MarginV=30'; // Standard size for long videos
+
+				// Escape the subtitle path for ffmpeg
+				const escapedSubtitlePath = subtitlePath.replace(/'/g, "'\\''");
+
 				await execAsync(
-					`ffmpeg -i "${concatenatedVideoPath}" -i "${voiceoverFiles[0]}" ` +
-					`-c:v copy -c:a aac -strict experimental "${withVoiceoverPath}"`
+					`ffmpeg -i "${concatenatedVideoPath}" -i "${voiceoverFiles[0]}" -vf "subtitles='${escapedSubtitlePath}':force_style='${subtitleStyle}'" ` +
+					`-c:a aac -strict experimental "${withVoiceoverPath}"`
 				);
 
 				// Final video path
