@@ -30,6 +30,8 @@ export default function VideoList({ channelId }: VideoListProps) {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
+	console.log("videos: ", videos)
+
 	const fetchVideos = async () => {
 		try {
 			setError(null);
@@ -166,7 +168,7 @@ export default function VideoList({ channelId }: VideoListProps) {
 									<div className='space-y-6 py-4'>
 										<div className='flex items-center justify-between'>
 											<Badge variant={video.status === 'completed' ? 'default' : 'secondary'}>
-												{video.status === 'completed' ? 'Completed' : 'In Progress'}
+												{video.status}
 											</Badge>
 											<div className='text-sm text-muted-foreground'>
 												Created: {new Date(video.createdAt).toLocaleString()}
@@ -250,8 +252,8 @@ export default function VideoList({ channelId }: VideoListProps) {
 								</DialogContent>
 							</Dialog>
 						</div>
-						<Badge variant={video.status === 'completed' ? 'default' : 'secondary'}>
-							{video.status === 'completed' ? 'Completed' : 'In Progress'}
+						<Badge variant={video.status === 'uploaded' ? 'default' : 'secondary'}>
+							{video.status}
 						</Badge>
 						{video.script && (
 							<ScrollArea className='h-[100px]'>
